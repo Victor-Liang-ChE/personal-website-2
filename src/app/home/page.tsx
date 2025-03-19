@@ -16,7 +16,7 @@ export default function HomePage() {
     <div className="container">
       <div className="content-container">
         <div className="hero-section">
-          <h1 className="intro-text">Hi, I'm Victor</h1>
+          <h1 className="intro-text">Hi, I&apos;m Victor</h1>
           <h1 className="hero-subtitle">Chemical Engineering and Materials Science Simulation Engineer</h1>
         </div>
         

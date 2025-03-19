@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 
 export default function ThemeProvider({ 
   children 
@@ -51,7 +52,7 @@ export default function ThemeProvider({
     <>
       <div id="background-overlay" />
       <div className={`navbar-wrapper ${darkMode ? 'dark-mode' : 'light-mode'}`}>
-        <a href="/" className="navbar-brand">Victor Liang</a>
+        <Link href="/" className="navbar-brand">Victor Liang</Link>
         <nav className="navbar">
           <a href="/simulations" className="nav-link">Simulations</a>
           <a href="/misc" className="nav-link">Misc</a>
