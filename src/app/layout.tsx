@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Metadata } from 'next';
 import './globals.css';
-import ThemeProvider from './ThemeProvider';
+import Navbar from './Navbar';
 
 export const metadata: Metadata = {
   title: 'Victor Liang - Chemical Engineering Simulation Developer',
@@ -16,9 +16,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <ThemeProvider>
+        <Navbar>
           {children}
-        </ThemeProvider>
+        </Navbar>
       </body>
     </html>
   );

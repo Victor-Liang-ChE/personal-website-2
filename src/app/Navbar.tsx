@@ -6,8 +6,9 @@ import { usePathname } from 'next/navigation';
 
 // Define page titles mapping
 const pageTitles: Record<string, string> = {
-  '/': 'Home',
-  '/simulations': 'Simulations',
+  '/': 'Welcome',
+  '/home': 'Welcome', // Added home path with Welcome title
+  '/simulations': 'Chemical Engineering Simulations',
   '/misc': 'Miscellaneous',
   '/simulations/mccabe-thiele': 'McCabe-Thiele Diagram'
 };
@@ -21,18 +22,18 @@ export default function Navbar({
 }) {
   const [mounted, setMounted] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
-  const pathname = usePathname();
+  const pathname = usePathname() || '/';
   
   // Get current page title
   const pageTitle = customTitle || pageTitles[pathname] || '';
   
   // Initialize dark mode from localStorage when component mounts
   useEffect(() => {
+    setMounted(true);
     const savedMode = localStorage.getItem('darkMode');
     if (savedMode !== null) {
       setDarkMode(savedMode === 'true');
     }
-    setMounted(true);
   }, []);
 
   // Update body class and localStorage when dark mode changes
@@ -53,20 +54,11 @@ export default function Navbar({
     setDarkMode(!darkMode);
   };
 
-  // Remove the duplicate navbar
-  useEffect(() => {
-    const navbars = document.querySelectorAll('nav.bg-\\[\\#4DA6FF\\]');
-    if (navbars.length > 0) {
-      navbars.forEach(navbar => {
-        navbar.remove();
-      });
-    }
-  }, []);
-
   return (
     <>
+      {/* Use a static classname that won't change between SSR and hydration */}
       <div id="background-overlay" />
-      <div className={`navbar-wrapper ${darkMode ? 'dark-mode' : 'light-mode'}`}>
+      <div className={`navbar-wrapper ${mounted ? (darkMode ? 'dark-mode' : 'light-mode') : 'dark-mode'}`}>
         <Link href="/" className="navbar-brand">Victor Liang</Link>
         
         {pageTitle && (
@@ -74,8 +66,8 @@ export default function Navbar({
         )}
         
         <nav className="navbar">
-          <a href="/simulations" className="nav-link">Simulations</a>
-          <a href="/misc" className="nav-link">Misc</a>
+          <Link href="/simulations" className="nav-link">Simulations</Link>
+          <Link href="/misc" className="nav-link">Misc</Link>
           <button 
             onClick={toggleDarkMode} 
             className="dark-mode-toggle"
@@ -106,6 +98,9 @@ export default function Navbar({
           position: sticky;
           top: 0;
           z-index: 100;
+          width: 100%;
+          height: 65px; /* Fixed height to prevent layout shift */
+          overflow: hidden; /* Prevent scrolling in navbar */
         }
         
         .navbar-wrapper.light-mode {
@@ -128,6 +123,7 @@ export default function Navbar({
           display: flex;
           gap: 1.5rem;
           align-items: center;
+          margin-right: 20px; /* Add margin to the right for better spacing */
         }
         
         .nav-link {
@@ -158,10 +154,17 @@ export default function Navbar({
         .page-title {
           position: absolute;
           left: 50%;
-          transform: translateX(-50%);
-          font-size: 1.2rem;
+          top: 50%;
+          transform: translate(-50%, -50%);
+          font-size: 1.35rem; /* Reduced font size */
           font-weight: 600;
           color: white;
+          width: auto;
+          white-space: nowrap;
+          text-align: center; /* Ensure text is centered */
+          max-width: 60%; /* Limit width to prevent overlap */
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
         
         .light-mode .page-title {
@@ -172,6 +175,18 @@ export default function Navbar({
           .page-title {
             display: none;
           }
+        }
+
+        /* Ensure body doesn't have horizontal scroll */
+        :global(body) {
+          overflow-x: hidden;
+          max-width: 100vw;
+        }
+        
+        /* Ensure content is properly constrained */
+        :global(#__next), :global(main) {
+          max-width: 100%;
+          overflow-x: hidden;
         }
       `}</style>
       

@@ -4,16 +4,14 @@ export default function SimulationsPage() {
   return (
     <div className="container">
       <div className="content-container">
-        <h1 className="page-title">Chemical Engineering Simulations</h1>
-        
         <div className="simulations-grid">
-          {/* TxyPxy Diagrams Card */}
-          <a href="/simulations/txy-pxy" className="simulation-card">
-            <div className="simulation-image">TxyPxy Diagrams</div>
+          {/* Kinetics Simulator Card */}
+          <a href="/simulations/kinetics" className="simulation-card">
+            <div className="simulation-image">Kinetics Simulator</div>
             <div className="simulation-content">
-              <h3 className="simulation-title">TxyPxy Diagrams</h3>
+              <h3 className="simulation-title">Kinetics Simulator</h3>
               <p className="simulation-description">
-                Visualize temperature-composition (Txy) and pressure-composition (Pxy) phase diagrams for binary mixtures with adjustable parameters.
+                Interactive simulator for chemical reaction kinetics. Model various reaction types and visualize concentration profiles over time with adjustable parameters.
               </p>
             </div>
           </a>
@@ -24,7 +22,7 @@ export default function SimulationsPage() {
             <div className="simulation-content">
               <h3 className="simulation-title">McCabe-Thiele Method</h3>
               <p className="simulation-description">
-                Interactive tool for analyzing distillation processes using the McCabe-Thiele method. Calculate theoretical stages needed for separation.
+                Select components (e.g., methanol and water), specify operating conditions, and visualize distillation processes. The tool identifies the most volatile component and generates accurate equilibrium diagrams.
               </p>
             </div>
           </a>
