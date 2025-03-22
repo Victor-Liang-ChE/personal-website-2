@@ -882,14 +882,6 @@ export default function McCabeThielePage() {
           overflow-x: hidden;
         }
         
-        .results-grid > div {
-          background-color: rgba(255, 255, 255, 0.1);
-          padding: 0.75rem;
-          border-radius: 4px;
-          overflow-wrap: break-word;
-          word-break: break-all;
-          overflow: hidden;
-        }
         
         .empty-plot {
           height: 600px;
@@ -929,15 +921,6 @@ export default function McCabeThielePage() {
         
         .temp-input {
           width: 120px;
-        }
-        
-        /* Fix for results box */
-        .results-container {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: 1rem;
-          width: 100%;
-          overflow: hidden;
         }
         
         .result-item {

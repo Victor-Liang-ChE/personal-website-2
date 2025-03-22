@@ -165,14 +165,14 @@ body {
 
 /* Navbar wrapper for positioning */
 .navbar-wrapper {
-  position: relative;
-  display: flex;
-  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr; /* Equal columns */
   align-items: center;
-  padding: 0 20px;
+  padding: 0 1.5rem;
   background-color: var(--nav-bg);
-  box-shadow: 0 2px 4px var(--card-shadow);
-  transition: background-color 0.3s;
+  z-index: 100;
 }
 
 .navbar-brand {
@@ -560,12 +560,12 @@ a.inline-block,
 
 /* Page title styling with proper padding */
 .page-title {
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: var(--text-color);
-  margin-bottom: 2rem;
-  padding: 0 2rem;
-  text-align: center;
+  justify-self: center;
+  font-size: 1.35rem;
+  font-weight: 600;
+  white-space: nowrap; /* Keep this to prevent wrapping */
+  padding: 14px 0;
+  line-height: 1;
 }
 
 /* Override for any buttons */
@@ -579,12 +579,61 @@ button:hover, .btn:hover, a.btn:hover {
   background-color: var(--button-hover);
 }
 
-/* Page title styling with proper padding */
-.page-title {
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: var(--text-color);
-  margin-bottom: 2rem;
-  padding: 0 2rem;
+/* Bio container with different background color and centered */
+.bio-container {
+  background-color: var(--darker-blue);
+  border-radius: var(--radius);
+  padding: 2rem;
+  margin: 0 auto;
+  width: 100%;
+  max-width: 800px;
+  box-shadow: 0 4px 8px var(--card-shadow)
+}
+
+/* McCabe-Thiele page specific styles */
+.temperature-input,
+.methanol-volatile-box {
+  padding: 0.75rem 0.25rem !important;
+}
+
+.submit-btn,
+.temperature-input input,
+.pressure-input input {
+  padding: 0rem 1rem !important;
+  height: 30px;
+}
+
+/* Force plotly to maintain fixed range regardless of screen size */
+.simulation-graph .js-plotly-plot .plotly .main-svg {
+  min-width: 600px;
+  min-height: 600px;
+}
+
+/* Misc page card styling */
+.misc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.misc-card {
+  background-color: var(--simulation-card-bg);
+  border-radius: var(--radius);
+  padding: 1.5rem 1rem;
   text-align: center;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-color);
+  text-decoration: none;
+}
+
+.misc-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
 }

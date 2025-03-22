@@ -2,24 +2,28 @@ import React from 'react';
 import Link from "next/link";
 
 export default function MiscPage() {
+  const projects = [
+    { name: "Drop Chance", path: "/misc/drop-chance" },
+    { name: "Japanese Lyrics Analyzer", path: "/misc/japanese-lyrics" },
+    { name: "Portola Menu", path: "/misc/portola-menu" },
+    { name: "Chemical Engineering Economics", path: "/misc/chem-econ" },
+    { name: "LaTeX Constructor & Converter", path: "/misc/latex" },
+    { name: "Sandbox", path: "/misc/sandbox" },
+    { name: "Chemistry Tools", path: "/misc/chemistry" },
+    { name: "YouTube Downloader", path: "/misc/youtube" }
+  ];
+
   return (
-    <div className="min-h-screen bg-[#1E90FF] text-white font-['Merriweather']">
-      {/* Navbar */}
-      <nav className="bg-[#4DA6FF] p-4 flex justify-between items-center">
-        <Link href="/" className="text-xl font-bold">
-          Victor Liang
-        </Link>
-        <div className="space-x-6">
-          <Link href="/simulations" className="hover:underline">Simulations</Link>
-          <Link href="/misc" className="hover:underline">Misc</Link>
-        </div>
-      </nav>
+    <div className="container">
+      <h1 className="page-title">Miscellaneous Projects</h1>
       
-      <main className="max-w-6xl mx-auto p-6 pt-12">
-        <h1 className="text-3xl font-bold mb-8">Miscellaneous Projects</h1>
-        
-        <p className="text-xl">This page is currently under construction. Check back soon for more content!</p>
-      </main>
+      <div className="misc-grid">
+        {projects.map((project, index) => (
+          <Link href={project.path} key={index} className="misc-card">
+            {project.name}
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }

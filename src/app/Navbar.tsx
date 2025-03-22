@@ -89,19 +89,7 @@ export default function Navbar({
       </div>
       
       <style jsx>{`
-        .navbar-wrapper {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 0.75rem 1.5rem;
-          background-color: #0c2d48;
-          position: sticky;
-          top: 0;
-          z-index: 100;
-          width: 100%;
-          height: 65px; /* Fixed height to prevent layout shift */
-          overflow: hidden; /* Prevent scrolling in navbar */
-        }
+
         
         .navbar-wrapper.light-mode {
           background-color: #e6f7ff;
@@ -109,10 +97,7 @@ export default function Navbar({
         }
         
         .navbar-brand {
-          font-size: 1.25rem;
-          font-weight: 700;
-          color: white;
-          text-decoration: none;
+          justify-self: start;       /* left edge */
         }
         
         .light-mode .navbar-brand {
@@ -120,10 +105,9 @@ export default function Navbar({
         }
         
         .navbar {
+          justify-self: end;         /* right edge */
           display: flex;
-          gap: 1.5rem;
-          align-items: center;
-          margin-right: 20px; /* Add margin to the right for better spacing */
+          gap: 1rem;
         }
         
         .nav-link {
@@ -151,22 +135,6 @@ export default function Navbar({
           color: #0c2d48;
         }
         
-        .page-title {
-          position: absolute;
-          left: 50%;
-          top: 50%;
-          transform: translate(-50%, -50%);
-          font-size: 1.35rem; /* Reduced font size */
-          font-weight: 600;
-          color: white;
-          width: auto;
-          white-space: nowrap;
-          text-align: center; /* Ensure text is centered */
-          max-width: 60%; /* Limit width to prevent overlap */
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        
         .light-mode .page-title {
           color: #0c2d48;
         }
@@ -185,6 +153,7 @@ export default function Navbar({
         
         /* Ensure content is properly constrained */
         :global(#__next), :global(main) {
+          padding-top: 65px;
           max-width: 100%;
           overflow-x: hidden;
         }
