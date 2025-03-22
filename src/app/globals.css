@@ -59,7 +59,7 @@ body::before {
   background-color: transparent;
   min-height: 100vh;
   padding: 2rem;
-  max-width: 1200px;
+  /* max-width: 1000px; */
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -250,7 +250,6 @@ body {
 
 /* Content container */
 .content-container {
-  max-width: 1000px; /* Increased width */
   margin: 0 auto;
   padding: 2rem;
   background-color: var(--card-bg);
