@@ -15,8 +15,6 @@ export default function MiscPage() {
 
   return (
     <div className="container">
-      <h1 className="page-title">Miscellaneous Projects</h1>
-      
       <div className="misc-grid">
         {projects.map((project, index) => (
           <Link href={project.path} key={index} className="misc-card">

@@ -90,12 +90,6 @@ export default function Navbar({
       
       <style jsx>{`
 
-        
-        .navbar-wrapper.light-mode {
-          background-color: #e6f7ff;
-          border-bottom: 1px solid #d1e8ff;
-        }
-        
         .navbar-brand {
           justify-self: start;       /* left edge */
         }
