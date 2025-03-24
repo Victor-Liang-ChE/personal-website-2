@@ -88,7 +88,7 @@ export default function McCabeThielePage() {
     try {
       console.log("DEBUG: Preparing API call to McCabe-Thiele endpoint");
       
-      // Use the actual API endpoint in your website
+      // Use Next.js API route instead of direct Flask server call
       const response = await fetch('/api/mccabe-thiele', {
         method: 'POST',
         headers: {
