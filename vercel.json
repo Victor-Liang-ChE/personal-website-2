@@ -1,8 +1,13 @@
 {
+  "version": 2,
   "buildCommand": "npm run build",
   "devCommand": "npm run dev",
-  "installCommand": "python -m pip install -r requirements.txt && npm install",
+  "installCommand": "pip install -r requirements.txt && npm install",
   "framework": "nextjs",
+  "builds": [
+    { "src": "python/server.py", "use": "@vercel/python" },
+    { "src": "package.json", "use": "@vercel/next" }
+  ],
   "routes": [
     { "handle": "filesystem" },
     { "src": "/api/mccabe-thiele", "dest": "/api/mccabe-thiele" }
