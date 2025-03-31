@@ -2,11 +2,19 @@
 
 import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
+import { Data } from 'plotly.js';
+
+interface PlotlyWrapperProps {
+  data: Data[];
+  layout: Record<string, unknown>;
+  config?: Record<string, unknown>;
+  style?: React.CSSProperties;
+}
 
 // Create a wrapper component to handle Plotly properly
 const PlotlyComponent = dynamic(() => import('react-plotly.js').then(mod => {
   const Plot = mod.default;
-  return function PlotWrapper(props: any) {
+  return function PlotWrapper(props: PlotlyWrapperProps) {
     return <Plot {...props} />;
   };
 }), {
@@ -43,18 +51,10 @@ export default function McCabeThielePage() {
   // State for calculation results
   const [stages, setStages] = useState<number | null>(null);
   const [feedStage, setFeedStage] = useState<number | null>(null);
-  const [minimumStages, setMinimumStages] = useState<number | null>(null);
-  const [minimumReflux, setMinimumReflux] = useState<number | null>(null);
   
   // State for the plot data
   const [plotData, setPlotData] = useState<any[]>([]);
   const [plotLayout, setPlotLayout] = useState<any>({});
-  
-  // Convert Celsius to Kelvin for calculations
-  const getTemperatureK = () => temperatureC + 273.15;
-  
-  // Convert bar to Pascal for calculations
-  const getPressurePa = () => pressureBar * 100000;
   
   useEffect(() => {
     // Set plot as ready when component mounts on client
@@ -78,81 +78,75 @@ export default function McCabeThielePage() {
     };
   }, []);
   
-  // Function to determine component volatility through API
-  const getComponentVolatility = async (comp1: string, comp2: string) => {
-    try {
-      // In a real implementation, this would call an API endpoint to get boiling points
-      // For now, we'll simulate an API call with timeout
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      // Simulate API response with component volatility information
-      // In a real implementation, this would call a Python backend using thermo library
-      const response = {
-        moreVolatile: comp1.toLowerCase() === 'methanol' ? comp1 : comp2,
-        bp1: 0, // These would be retrieved from the API
-        bp2: 0
-      };
-      
-      return {
-        message: `${response.moreVolatile} is more volatile`,
-        moreVolatile: response.moreVolatile,
-        bp1: response.bp1,
-        bp2: response.bp2
-      };
-    } catch (error) {
-      console.error("Error fetching component volatility:", error);
-      return {
-        message: `Could not determine volatility for ${comp1} or ${comp2}`,
-        moreVolatile: null,
-        bp1: null,
-        bp2: null
-      };
-    }
-  };
-  
-  // Function to fetch VLE data from the API
-  const fetchVLEData = async () => {
+  const fetchVLEData = React.useCallback(async () => {
+    console.log("DEBUG: fetchVLEData called with components:", comp1, comp2);
+    console.log(`DEBUG: Using ${useTemperature ? 'temperature' : 'pressure'} mode with value ${useTemperature ? temperatureC : pressureBar}`);
+    
     setLoading(true);
     setError(null);
     
     try {
-      // In production, this would call an API endpoint
-      // For now, we'll simulate a successful response with mock data
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log("DEBUG: Preparing API call to McCabe-Thiele endpoint");
       
-      // Get volatility information
-      const volatility = await getComponentVolatility(comp1, comp2);
-      setVolatilityInfo(volatility.message);
-      
-      // Create mock equilibrium data (simplified example)
-      // In a real implementation, this would come from the API
-      const xValues = Array.from({ length: 101 }, (_, i) => i / 100);
-      const yValues = xValues.map(x => {
-        // Simple VLE model for demonstration
-        // In real implementation, this would be calculated by the Python backend
-        return (1.5 * x) / (1 + 0.5 * x);
+      // Use Next.js API route instead of direct Flask server call
+      const response = await fetch('/api/mccabe-thiele', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          comp1: comp1,
+          comp2: comp2,
+          temperature: useTemperature ? temperatureC : null,
+          pressure: !useTemperature ? pressureBar : null,
+        }),
       });
+      console.log(`DEBUG: API response status: ${response.status}`);
+      
+      const data = await response.json();
+      console.log(`DEBUG: API response received. Success: ${!data.error}`);
+      
+      if (data.error) {
+        console.error("DEBUG ERROR: API returned error:", data.error);
+        throw new Error(data.error);
+      }
+
+      console.log(`DEBUG: VLE data received. Points: ${data.x_values?.length || 0}`);
+      console.log(`DEBUG: Temperature: ${data.temperature}K, Pressure: ${data.pressure ? data.pressure/1e5 + 'bar' : 'Not specified'}`);
+      console.log("DEBUG: Volatility info:", data.volatility);
+      
+      // Set volatility information
+      setVolatilityInfo(data.volatility?.message || `${comp1} / ${comp2} VLE data`);
+      
+      // Use the received equilibrium data
+      const xValues = data.x_values || [];
+      const yValues = data.y_values || [];
+      
+      console.log(`DEBUG: First few x values: ${xValues.slice(0, 5).join(', ')}`);
+      console.log(`DEBUG: First few y values: ${yValues.slice(0, 5).join(', ')}`);
       
       // Set the equilibrium data
       setEquilibriumData({
         x: xValues,
         y: yValues,
-        polyCoeffs: [1.5, 0] // Simple polynomial coefficients for demo
+        polyCoeffs: data.poly_coeffs || []
       });
       
+      console.log("DEBUG: Generating plot with VLE data");
       // Generate the plot data
       generatePlotData(xValues, yValues);
+      console.log("DEBUG: Plot generation complete");
       
     } catch (err) {
-      console.error("Error fetching VLE data:", err);
-      setError("Failed to load equilibrium data. Please try again.");
+      console.error("DEBUG ERROR: Error fetching VLE data:", err);
+      setError(`Failed to load equilibrium data. ${err instanceof Error ? err.message : 'Please try again.'}`);
     } finally {
       setLoading(false);
+      console.log("DEBUG: fetchVLEData completed");
     }
-  };
-  
-  // Function to generate plot data based on McCabe-Thiele method
-  const generatePlotData = (xValues: number[], yValues: number[]) => {
+  }, [comp1, comp2, useTemperature, temperatureC, pressureBar]);
+
+  const generatePlotData = React.useCallback((xValues: number[], yValues: number[]) => {
     // Generate equilibrium line
     const equilibriumLine = {
       x: xValues,
@@ -160,96 +154,217 @@ export default function McCabeThielePage() {
       type: 'scatter',
       mode: 'lines',
       name: 'Equilibrium Line',
-      line: { color: 'yellow', width: 2 }
+      line: { color: 'yellow', width: 2 },
+      hovertemplate: 'x: %{x:.3f}<br>y: %{y:.3f}<extra></extra>'
     };
     
     // Generate y=x line
     const yxLine = {
       x: [0, 1],
-      y: [0, 1],
+      y: [0, 1], 
       type: 'scatter',
       mode: 'lines',
       name: 'y = x Line',
-      line: { color: 'white', width: 1, dash: 'dot' }
+      line: { color: 'white', width: 1, dash: 'dot' },
+      hovertemplate: 'x: %{x:.3f}<br>y: %{y:.3f}<extra></extra>'
+    };
+    
+    // Helper function to find intersection with equilibrium curve
+    const findEquilibriumIntersection = (slope: number, intercept: number, startX: number, endX: number, direction: 'increasing' | 'decreasing'): [number, number] | null => {
+      // Create points along the line
+      const step = 0.001; // Small step for precision
+      let currentX = startX;
+      
+      while ((direction === 'increasing' && currentX <= endX) || (direction === 'decreasing' && currentX >= endX)) {
+        const lineY = slope * currentX + intercept;
+        
+        // Find equilibrium y at this x through interpolation
+        let eqY = 0;
+        for (let i = 0; i < xValues.length - 1; i++) {
+          if (xValues[i] <= currentX && xValues[i+1] >= currentX) {
+            const fraction = (currentX - xValues[i]) / (xValues[i+1] - xValues[i]);
+            eqY = yValues[i] + fraction * (yValues[i+1] - yValues[i]);
+            break;
+          }
+        }
+        
+        // Check if line crosses equilibrium
+        if ((direction === 'increasing' && lineY >= eqY) || (direction === 'decreasing' && lineY <= eqY)) {
+          return [currentX, lineY];
+        }
+        
+        currentX += direction === 'increasing' ? step : -step;
+      }
+      
+      return null; // No intersection found
     };
     
     // Generate rectifying section line
     const rectifyingSlope = r / (r + 1);
     const rectifyingIntercept = xd / (r + 1);
-    const rectifyingX = Array.from({ length: 101 }, (_, i) => i / 100);
-    const rectifyingY = rectifyingX.map(x => rectifyingSlope * x + rectifyingIntercept);
+    
+    // Find where rectifying section meets equilibrium curve
+    const rectEqIntersection = findEquilibriumIntersection(
+      rectifyingSlope, 
+      rectifyingIntercept,
+      0, // Start from x=0
+      xd, // End at xd
+      'increasing' // Direction
+    );
+    
+    // Generate feed line
+    let feedSlope: number;
+    if (q === 1) {
+      feedSlope = 1000; // Very large slope instead of infinite
+    } else {
+      feedSlope = q / (q - 1);
+    }
+    const feedIntercept = q === 1 ? -1000 * xf + xf : -xf / (q - 1);
+    
+    // Find intersection point of rectifying and feed lines
+    let xIntersect: number;
+    let yIntersect: number;
+    
+    xIntersect = (feedIntercept - rectifyingIntercept) / (rectifyingSlope - feedSlope);
+    yIntersect = rectifyingSlope * xIntersect + rectifyingIntercept;
+    
+    // Check if the rectifying line should stop at the intersection with feed line
+    const rectEndX = (xIntersect > 0 && xIntersect < xd) ? xIntersect : 
+                     (rectEqIntersection ? rectEqIntersection[0] : xd);
+    
+    const rectifyingX = [];
+    const rectifyingY = [];
+    
+    // Generate points for rectifying line from xd down to either intersection or equilibrium
+    for (let i = 0; i <= 100; i++) {
+      const x = xd - (i / 100) * (xd - rectEndX);
+      if (x < rectEndX) break;
+      rectifyingX.push(x);
+      rectifyingY.push(rectifyingSlope * x + rectifyingIntercept);
+    }
     
     const rectifyingLine = {
       x: rectifyingX,
       y: rectifyingY,
       type: 'scatter',
       mode: 'lines',
-      name: 'Rectifying Line',
-      line: { color: 'orange', width: 2 }
+      name: 'Rectifying Section',
+      line: { color: 'orange', width: 2 },
+      hovertemplate: 'x: %{x:.3f}<br>y: %{y:.3f}<extra></extra>'
     };
     
-    // Generate feed line
-    let feedSlope: number;
-    if (q === 1) {
-      feedSlope = Number.POSITIVE_INFINITY; // Vertical line
+    // For feed line with very high slope (q=1 or near 1)
+    const feedX = [];
+    const feedY = [];
+    
+    // For near-vertical lines (q very close to 1)
+    if (Math.abs(feedSlope) > 100) {
+      // Create a straight vertical line from feed point (xf, xf) on the y=x line
+      // down to the intersection with the operating lines (rectifying and stripping)
+      feedX.push(xf);
+      feedY.push(xf); // Start at feed point on y=x line, y equals x
+  
+      // The feed line should go to the intersection point (xIntersect, yIntersect)
+      // Ensure yIntersect is within the valid range (y >= 0)
+      if (yIntersect >= 0) {
+        feedX.push(xIntersect);
+        feedY.push(yIntersect);
+      } else {
+        // If the intersection is below the chart (y < 0), stop at y=0
+        feedX.push(xf);
+        feedY.push(0);
+      }
     } else {
-      feedSlope = q / (q - 1);
+      // For non-vertical feed lines (unchanged logic)
+      const feedDirection = feedSlope > 0 ? 'increasing' : 'decreasing';
+      const yxIntersectX = (feedIntercept) / (1 - feedSlope);
+      const validYXIntersect = yxIntersectX >= 0 && yxIntersectX <= 1;
+  
+      feedX.push(xf);
+      feedY.push(xf); // Feed point is on y=x line
+  
+      if (validYXIntersect && yxIntersectX != xf) {
+        if (feedDirection === 'increasing' && yxIntersectX > xf) {
+          feedX.push(yxIntersectX);
+          feedY.push(yxIntersectX);
+        } else if (feedDirection === 'decreasing' && yxIntersectX < xf) {
+          feedX.push(yxIntersectX);
+          feedY.push(yxIntersectX);
+        } else {
+          feedX.push(xIntersect);
+          feedY.push(yIntersect);
+        }
+      } else {
+        feedX.push(xIntersect);
+        feedY.push(yIntersect);
+      }
+  
+      if (feedX[feedX.length - 1] !== xIntersect || feedY[feedY.length - 1] !== yIntersect) {
+        feedX.push(xIntersect);
+        feedY.push(yIntersect);
+      }
     }
-    const feedIntercept = -xf / (q - 1);
-    
-    const feedX = Array.from({ length: 101 }, (_, i) => i / 100);
-    const feedY = feedSlope === Number.POSITIVE_INFINITY 
-      ? feedX.map(() => 0) // Will be adjusted in layout
-      : feedX.map(x => feedSlope * x + feedIntercept);
-    
+  
     const feedLine = {
       x: feedX,
       y: feedY,
       type: 'scatter',
       mode: 'lines',
-      name: 'Feed Line',
-      line: { color: 'red', width: 2 }
+      name: 'Feed Section',
+      line: { color: 'red', width: 2 },
+      hovertemplate: 'Feed Line<br>x: %{x:.3f}<br>y: %{y:.3f}<extra></extra>',
     };
-    
-    // Find intersection point of rectifying and feed lines
-    let xIntersect: number;
-    let yIntersect: number;
-    
-    if (feedSlope === Number.POSITIVE_INFINITY) {
-      xIntersect = xf;
-      yIntersect = rectifyingSlope * xf + rectifyingIntercept;
-    } else {
-      xIntersect = (feedIntercept - rectifyingIntercept) / (rectifyingSlope - feedSlope);
-      yIntersect = rectifyingSlope * xIntersect + rectifyingIntercept;
-    }
     
     // Generate stripping section line
     const strippingSlope = (yIntersect - xb) / (xIntersect - xb);
-    const strippingX = Array.from({ length: 101 }, (_, i) => xb + (i / 100) * (xIntersect - xb));
-    const strippingY = strippingX.map(x => strippingSlope * (x - xb) + xb);
+    
+    // Find where stripping section meets equilibrium curve
+    const stripEqIntersection = findEquilibriumIntersection(
+      strippingSlope,
+      xb - strippingSlope * xb, // Intercept
+      xb, // Start from xb
+      xIntersect, // End at intersection point
+      'increasing' // Direction
+    );
+    
+    const strippingX = [];
+    const strippingY = [];
+    
+    // Generate points from bottom to intersection, stopping at equilibrium if needed
+    for (let i = 0; i <= 100; i++) {
+      const x = xb + (i / 100) * (xIntersect - xb);
+      // Stop if we've passed the intersection or hit the equilibrium
+      if (x > xIntersect || (stripEqIntersection && x > stripEqIntersection[0])) break;
+      strippingX.push(x);
+      strippingY.push(strippingSlope * (x - xb) + xb);
+    }
     
     const strippingLine = {
       x: strippingX,
       y: strippingY,
       type: 'scatter',
       mode: 'lines',
-      name: 'Stripping Line',
-      line: { color: 'green', width: 2 }
+      name: 'Stripping Section',
+      line: { color: 'green', width: 2 },
+      hovertemplate: 'x: %{x:.3f}<br>y: %{y:.3f}<extra></extra>'
     };
     
-    // Generate key points
+    // Update key points with specific names
     const keyPoints = {
       x: [xd, xb, xf],
       y: [xd, xb, xf],
       type: 'scatter',
       mode: 'markers',
+      textposition: 'top center',
       marker: { 
         color: ['orange', 'green', 'red'], 
         size: 10,
-        symbol: ['square', 'circle', 'diamond'] 
+        symbol: ['circle', 'circle', 'circle'] 
       },
       name: 'Key Points',
-      showlegend: false
+      showlegend: false,
+      text: ['Distillate', 'Bottoms', 'Feed'],
+      hovertemplate: '%{text}<br>x: %{x:.3f}<br>y: %{y:.3f}<extra></extra>'
     };
     
     // Calculate stages
@@ -258,6 +373,7 @@ export default function McCabeThielePage() {
     let currentX = xd;
     let currentY = xd;
     const stageLines: Array<any> = [];
+    let previousSectionIsRectifying = true; // Track which section we were in previously
     
     // Perform McCabe-Thiele iterations
     while (currentX > xb + 0.01 && stageCount < 20) {
@@ -275,55 +391,85 @@ export default function McCabeThielePage() {
         }
       }
       
-      // Add horizontal stage line
+      // Add horizontal stage line - with increased thickness
       stageLines.push({
         x: [currentX, intersectX],
         y: [currentY, currentY],
         type: 'scatter',
         mode: 'lines',
-        line: { color: 'white', width: 1 },
+        line: { color: 'white', width: 2 }, // Increased width from 1 to 2
         showlegend: false
       });
       
-      // Move vertically to operating line
+      // Move vertically to operating line or y=x line
       let nextY: number;
+      const currentSectionIsRectifying = intersectX > xIntersect;
       
-      if (intersectX > xIntersect) {
+      if (currentSectionIsRectifying) {
         // In rectifying section
         nextY = rectifyingSlope * intersectX + rectifyingIntercept;
-        if (feedStageCount === 0) feedStageCount = stageCount + 1;
       } else {
         // In stripping section
         nextY = strippingSlope * (intersectX - xb) + xb;
       }
       
-      // Add vertical stage line
-      stageLines.push({
-        x: [intersectX, intersectX],
-        y: [intersectY, nextY],
-        type: 'scatter',
-        mode: 'lines',
-        line: { color: 'white', width: 1 },
-        showlegend: false
-      });
+      // Detect transition from stripping to rectifying section (or vice versa)
+      // The feed stage is the first stage that begins in the rectifying section
+      if (currentSectionIsRectifying !== previousSectionIsRectifying) {
+        // We've crossed the feed line - this is the feed stage
+        feedStageCount = stageCount + 1;
+      }
+
+      // Update previous section for next iteration
+      previousSectionIsRectifying = currentSectionIsRectifying;
+
+      // Check if this is the last stage (near xb or almost at the max number of stages)
+      const isLastStage = (intersectX <= xb + 0.05) || (stageCount >= 19);
       
-      // Update current position
-      currentX = intersectX;
-      currentY = nextY;
+      if (isLastStage) {
+        // For the last stage, stop at the y=x line
+        const yxLineY = intersectX; // On y=x line, y equals x
+        
+        // Add vertical stage line that stops at y=x line - with increased thickness
+        stageLines.push({
+          x: [intersectX, intersectX],
+          y: [intersectY, yxLineY],
+          type: 'scatter',
+          mode: 'lines',
+          line: { color: 'white', width: 2 }, // Increased width from 1 to 2
+          showlegend: false
+        });
+        
+        // Update current position to be on the y=x line
+        currentX = intersectX;
+        currentY = yxLineY;
+      } else {
+        // Add normal vertical stage line - with increased thickness
+        stageLines.push({
+          x: [intersectX, intersectX],
+          y: [intersectY, nextY],
+          type: 'scatter',
+          mode: 'lines',
+          line: { color: 'white', width: 2 }, // Increased width from 1 to 2
+          showlegend: false
+        });
+        
+        // Update current position
+        currentX = intersectX;
+        currentY = nextY;
+      }
+      
       stageCount++;
+    }
+    
+    // If no feed stage was found (e.g., if we're always in the rectifying section)
+    if (feedStageCount === 0) {
+      feedStageCount = stageCount; // Set to total number of stages
     }
     
     // Update state with calculation results
     setStages(stageCount);
     setFeedStage(feedStageCount);
-    
-    // Set the minimum stages using a simplified Fenske equation
-    // In a real implementation, this would be calculated based on the relative volatility
-    setMinimumStages(Math.ceil(stageCount * 0.6));
-    
-    // Set the minimum reflux ratio
-    // In a real implementation, this would be calculated using Underwood equation
-    setMinimumReflux(r * 0.7);
     
     // Combine all plot data
     const plotData = [
@@ -341,56 +487,69 @@ export default function McCabeThielePage() {
     const comp1Capitalized = capitalizeFirst(comp1);
     const comp2Capitalized = capitalizeFirst(comp2);
     
-    // Set the plot layout
+    // Get the more volatile component for axis labels
+    const moreVolatile = volatilityInfo?.includes(`${comp1} is more volatile`) ? comp1 : comp2;
+    
+    // Set the plot layout with rounded corners and tick marks every 0.1
     const plotLayout = {
       title: {
         text: `McCabe-Thiele Diagram for ${comp1Capitalized} + ${comp2Capitalized} at ${useTemperature ? temperatureC + ' °C' : pressureBar + ' bar'}`,
         font: { color: 'white', family: 'Merriweather Sans', size: 18 }
       },
       xaxis: {
-        title: `Liquid mole fraction ${comp1}`,
-        titlefont: { color: 'white', size: 16 },
-        range: [0, 1],
-        gridcolor: 'transparent', // Remove grid
+        title: {
+          text: `Liquid mole fraction ${moreVolatile}`,
+          font: { color: 'white', family: 'Merriweather Sans', size: 16 }
+        },
         zerolinecolor: 'white',
-        tickfont: { color: 'white', size: 14 },
-        dtick: 0.1, // Tick marks every 0.1
-        showgrid: false,
-        fixedrange: true // Prevent user from zooming beyond 0-1 range
+        tickfont: { color: 'white', family: 'Merriweather Sans', size: 14 },
+        tickmode: 'linear',
+        ticks: 'inside', 
+        ticklen: 8,
+        tickwidth: 2,
+        tickcolor: 'white',
+        dtick: 0.1,
+        tick0: 0,
+        range: [0, 1],
+        tickformat: '.1f'
       },
       yaxis: {
-        title: `Vapor mole fraction ${comp1}`,
-        titlefont: { color: 'white', size: 16 },
-        range: [0, 1],
-        scaleanchor: 'x',
-        scaleratio: 1,
-        gridcolor: 'transparent', // Remove grid
+        title: {
+          text: `Vapor mole fraction ${moreVolatile}`,
+          font: { color: 'white', family: 'Merriweather Sans', size: 16 }
+        },
         zerolinecolor: 'white',
-        tickfont: { color: 'white', size: 14 },
-        dtick: 0.1, // Tick marks every 0.1
-        showgrid: false,
-        fixedrange: true // Prevent user from zooming beyond 0-1 range
+        tickfont: { color: 'white', family: 'Merriweather Sans', size: 14 },
+        tickmode: 'linear',
+        ticks: 'inside', 
+        ticklen: 8,
+        tickwidth: 2,
+        tickcolor: 'white',
+        dtick: 0.1,
+        tick0: 0,
+        range: [0, 1],
+        tickformat: '.1f'
       },
       legend: {
-        x: 0.95, // Move to right
-        y: 0.05, // Move to bottom
+        x: 0.95,
+        y: 0.05,
         xanchor: 'right',
         yanchor: 'bottom',
         bgcolor: 'rgba(0,0,0,0.5)',
-        font: { color: 'white', size: 12 }
+        font: { color: 'white', family: 'Merriweather Sans', size: 12 }
       },
       plot_bgcolor: '#08306b',
       paper_bgcolor: '#08306b',
       hovermode: 'closest',
-      autosize: true, // Allow the plot to resize with container
+      autosize: true,
       height: 600,
-      margin: { l: 60, r: 30, t: 60, b: 60 }
+      margin: { l: 50, r: 30, t: 60, b: 40 },
     };
     
     // Update state with plot data and layout
     setPlotData(plotData);
     setPlotLayout(plotLayout);
-  };
+  }, [xd, xb, xf, q, r, equilibriumData, volatilityInfo]);
 
   // Format feed quality description
   const getFeedQualityState = () => {
@@ -433,6 +592,12 @@ export default function McCabeThielePage() {
     }
   };
 
+  useEffect(() => {
+    if (equilibriumData?.x && equilibriumData?.y) {
+      generatePlotData(equilibriumData.x, equilibriumData.y);
+    }
+  }, [equilibriumData, generatePlotData]);
+
   return (
     <div className="container">
       <div className="simulation-layout">
@@ -442,7 +607,7 @@ export default function McCabeThielePage() {
             <div className="control-group">
               <div className="component-row">
                 <div className="component-inputs">
-                  <div className="input-group">
+                  <div className="input-group horizontal-input-group">
                     <label htmlFor="comp1">Component 1:</label>
                     <input 
                       id="comp1"
@@ -453,7 +618,7 @@ export default function McCabeThielePage() {
                     />
                   </div>
                   
-                  <div className="input-group">
+                  <div className="input-group horizontal-input-group">
                     <label htmlFor="comp2">Component 2:</label>
                     <input 
                       id="comp2"
@@ -464,12 +629,6 @@ export default function McCabeThielePage() {
                     />
                   </div>
                 </div>
-                
-                {volatilityInfo && (
-                  <div className="volatility-info">
-                    {volatilityInfo}
-                  </div>
-                )}
               </div>
               
               <div className="parameter-toggle">
@@ -490,8 +649,8 @@ export default function McCabeThielePage() {
               </div>
               
               {useTemperature ? (
-                <div className="input-group temperature-input">
-                  <label htmlFor="temperature" className="temp-label">Temperature (°C):</label>
+                <div className="input-group horizontal-input-group">
+                  <label htmlFor="temperature">Temperature (°C):</label>
                   <input 
                     id="temperature"
                     type="number"
@@ -500,11 +659,10 @@ export default function McCabeThielePage() {
                     min="0"
                     step="1"
                     required
-                    style={{ width: '120px' }} // Make input smaller
                   />
                 </div>
               ) : (
-                <div className="input-group temperature-input">
+                <div className="input-group horizontal-input-group">
                   <label htmlFor="pressure">Pressure (bar):</label>
                   <input 
                     id="pressure"
@@ -540,8 +698,8 @@ export default function McCabeThielePage() {
               <input
                 id="xd"
                 type="range"
-                min="0"
-                max="1"
+                min="0.02"
+                max="0.99"
                 step="0.01"
                 value={xd}
                 onChange={(e) => updateCompositions('xd', Number(e.target.value))}
@@ -555,8 +713,8 @@ export default function McCabeThielePage() {
               <input
                 id="xb"
                 type="range"
-                min="0"
-                max="1"
+                min="0.01"
+                max="0.98"
                 step="0.01"
                 value={xb}
                 onChange={(e) => updateCompositions('xb', Number(e.target.value))}
@@ -570,8 +728,8 @@ export default function McCabeThielePage() {
               <input
                 id="xf"
                 type="range"
-                min="0"
-                max="1"
+                min="0.02"
+                max="0.98"
                 step="0.01"
                 value={xf}
                 onChange={(e) => {
@@ -593,7 +751,8 @@ export default function McCabeThielePage() {
             
             <div className="slider-group">
               <label htmlFor="q">
-                Feed Quality: q = {q.toFixed(2)} <span className="quality-state">({getFeedQualityState()})</span>
+                Feed Quality: q = {q.toFixed(2)} 
+                <span title={getFeedQualityState()} className="info-tooltip">ⓘ</span>
               </label>
               <input
                 id="q"
@@ -652,302 +811,20 @@ export default function McCabeThielePage() {
           
           {stages !== null && (
             <div className="results-container">
-              <h3>Results</h3>
               <div className="results-grid">
                 <div className="result-item">
-                  <span>Number of Stages: </span>
-                  <strong>{stages}</strong>
+                  <div className="result-label">Number of Stages</div>
+                  <div className="result-value">{stages}</div>
                 </div>
                 <div className="result-item">
-                  <span>Feed Stage: </span>
-                  <strong>{feedStage}</strong>
+                  <div className="result-label">Feed Stage</div>
+                  <div className="result-value">{feedStage}</div>
                 </div>
-                {minimumStages !== null && (
-                  <div className="result-item">
-                    <span>Minimum Stages: </span>
-                    <strong>{minimumStages.toFixed(2)}</strong>
-                  </div>
-                )}
-                {minimumReflux !== null && (
-                  <div className="result-item">
-                    <span>Minimum Reflux: </span>
-                    <strong>{minimumReflux.toFixed(2)}</strong>
-                  </div>
-                )}
               </div>
             </div>
           )}
         </div>
       </div>
-      
-      <style jsx>{`
-        .container {
-          width: 100%;
-          max-width: 1200px;
-          margin: 0 auto;
-          padding: 1rem;
-        }
-        
-        .content-container {
-          width: 100%;
-          max-width: 100%;
-          margin: 0 auto;
-          padding: 1.5rem;
-          overflow-x: hidden; /* Prevent horizontal scrolling */
-        }
-        
-        .simulation-layout {
-          display: flex;
-          flex-direction: row;
-          gap: 2rem;
-          margin-top: 1rem;
-          width: 100%;
-          overflow-x: hidden; /* Prevent horizontal scrolling */
-        }
-        
-        @media (max-width: 1200px) {
-          .simulation-layout {
-            flex-direction: column;
-          }
-        }
-        
-        .component-row {
-          display: flex;
-          align-items: flex-start;
-          gap: 1rem;
-        }
-        
-        .component-inputs {
-          flex: 0 0 60%;
-        }
-        
-        .volatility-info {
-          flex: 0 0 35%;
-          background-color: rgba(77, 166, 255, 0.1);
-          padding: 0.5rem;
-          border-radius: 4px;
-          margin-top: 1.5rem;
-          min-height: 2rem;
-          display: flex;
-          align-items: center;
-          font-style: italic;
-          align-self: center;
-        }
-        
-        .simulation-controls {
-          flex: 0 0 350px;
-          min-width: 320px;
-          max-width: 400px;
-        }
-        
-        .simulation-display {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          gap: 1.5rem;
-          min-width: 0; /* Critical for preventing flex children from expanding beyond parent */
-        }
-        
-        .simulation-graph {
-          width: 100%;
-          min-height: 600px;
-          overflow: hidden;
-        }
-        
-        .control-group {
-          margin-bottom: 1.5rem;
-          padding: 1rem;
-          background-color: rgba(255, 255, 255, 0.05);
-          border-radius: 8px;
-        }
-        
-        .input-group {
-          margin-bottom: 1rem;
-          display: flex;
-          align-items: center;
-        }
-        
-        .temperature-input {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-        }
-
-        .temperature-input label {
-          flex: 1;
-        }
-
-        .temperature-input input {
-          flex: 1;
-          width: auto !important;
-        }
-        
-        .input-group label {
-          display: block;
-          margin-bottom: 0.5rem;
-          font-weight: 500;
-          margin-right: 0.5rem;
-          white-space: nowrap;
-        }
-        
-        .input-group input[type="text"],
-        .input-group input[type="number"] {
-          width: 100%;
-          padding: 0.5rem;
-          border: 1px solid #4DA6FF;
-          background-color: rgba(255, 255, 255, 0.1);
-          color: var(--text-color, white);
-          border-radius: 4px;
-        }
-        
-        .parameter-toggle {
-          display: flex;
-          margin: 1rem 0;
-        }
-        
-        .toggle-btn {
-          flex: 1;
-          padding: 0.5rem;
-          border: 1px solid #4DA6FF;
-          background-color: transparent;
-          color: white;
-          cursor: pointer;
-        }
-        
-        .toggle-btn:first-child {
-          border-radius: 4px 0 0 4px;
-        }
-        
-        .toggle-btn:last-child {
-          border-radius: 0 4px 4px 0;
-        }
-        
-        .toggle-btn.active {
-          background-color: #4DA6FF;
-          color: white;
-        }
-        
-        .submit-btn {
-          padding: 0.75rem 1rem;
-          background-color: #4DA6FF;
-          color: white;
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
-          font-weight: 600;
-          width: 100%;
-          transition: background-color 0.2s;
-        }
-        
-        .submit-btn:hover:not(:disabled) {
-          background-color: #3284d6;
-        }
-        
-        .submit-btn:disabled {
-          background-color: #666;
-          cursor: not-allowed;
-        }
-        
-        .slider-group {
-          margin-bottom: 1.25rem;
-        }
-        
-        .slider-group label {
-          display: block;
-          margin-bottom: 0.5rem;
-        }
-        
-        .slider-group input[type="range"] {
-          width: 100%;
-          margin-top: 0.5rem;
-        }
-
-        .quality-state {
-          font-size: 1em;
-          font-weight: normal;
-          margin-left: 0.5rem;
-        }
-        
-        .results-container {
-          margin-top: 1.5rem;
-          background-color: rgba(255, 255, 255, 0.05);
-          border-radius: 8px;
-          padding: 1rem;
-        }
-        
-        .results-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-          gap: 1rem;
-          overflow-x: hidden;
-        }
-        
-        .results-grid > div {
-          background-color: rgba(255, 255, 255, 0.1);
-          padding: 0.75rem;
-          border-radius: 4px;
-          overflow-wrap: break-word;
-          word-break: break-all;
-          overflow: hidden;
-        }
-        
-        .empty-plot {
-          height: 600px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background-color: #08306b;
-          color: white;
-          border-radius: 8px;
-          padding: 2rem;
-          text-align: center;
-        }
-        
-        .loading-plot {
-          height: 600px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background-color: #08306b;
-          color: white;
-          border-radius: 8px;
-          padding: 2rem;
-        }
-        
-        .error-message {
-          color: #ff6b6b;
-          margin-bottom: 1rem;
-          padding: 0.5rem;
-          background-color: rgba(255, 107, 107, 0.1);
-          border-radius: 4px;
-        }
-        
-        .temp-label {
-          white-space: nowrap;
-          margin-right: 0.5rem;
-        }
-        
-        .temp-input {
-          width: 120px;
-        }
-        
-        /* Fix for results box */
-        .results-container {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: 1rem;
-          width: 100%;
-          overflow: hidden;
-        }
-        
-        .result-item {
-          background: rgba(255, 255, 255, 0.1);
-          padding: 0.75rem;
-          border-radius: 4px;
-          word-break: break-word;
-          overflow-wrap: break-word;
-        }
-      `}</style>
     </div>
   );
 }
