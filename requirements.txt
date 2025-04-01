@@ -2,3 +2,6 @@ flask
 gunicorn
 numpy
 thermo
+chempy
+pubchempy
+rdkit
