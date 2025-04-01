@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
-// Get the Cloud Run URL from environment variables or use default
-const CLOUD_RUN_URL = process.env.CLOUD_RUN_URL || "https://your-cloud-run-nextjsbackend.run.app";
+const CLOUD_RUN_URL = process.env.CLOUD_RUN_URL || "https://nextjsbackend-23789472506.us-west1.run.app";
+// Be sure to include the correct path if needed (e.g. "/chemistry/parse-reaction")
 
 export async function POST(request: Request) {
   try {
@@ -12,7 +12,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, message: 'No equation provided' }, { status: 400 });
     }
 
-    // Call Cloud Run backend instead of local Python execution
     const response = await fetch(`${CLOUD_RUN_URL}/chemistry/parse-reaction`, {
       method: 'POST',
       headers: {
@@ -34,9 +33,9 @@ export async function POST(request: Request) {
     return NextResponse.json(data);
   } catch (error) {
     console.error("API error:", error);
-    return NextResponse.json({ 
-      success: false, 
-      message: `Server error: ${error instanceof Error ? error.message : String(error)}` 
+    return NextResponse.json({
+      success: false,
+      message: `Server error: ${error instanceof Error ? error.message : String(error)}`
     }, { status: 500 });
   }
 }
