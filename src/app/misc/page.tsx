@@ -9,7 +9,7 @@ export default function MiscPage() {
     { name: "Chemical Engineering Economics", path: "/misc/chem-econ" },
     { name: "LaTeX Constructor & Converter", path: "/misc/latex" },
     { name: "Sandbox", path: "/misc/sandbox" },
-    { name: "Chemistry Tools", path: "/misc/chemistry" },
+    { name: "Chemistry Tools", path: "/misc/chemistry-tools" },
     { name: "Video/Audio Downloader", path: "/misc/downloader" }
   ];
 
