@@ -10,7 +10,7 @@ export default function MiscPage() {
     { name: "LaTeX Constructor & Converter", path: "/misc/latex" },
     { name: "Sandbox", path: "/misc/sandbox" },
     { name: "Chemistry Tools", path: "/misc/chemistry" },
-    { name: "YouTube Downloader", path: "/misc/youtube" }
+    { name: "Video/Audio Downloader", path: "/misc/downloader" }
   ];
 
   return (

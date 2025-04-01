@@ -1010,3 +1010,145 @@ button:hover, .btn:hover, a.btn:hover {
   flex: 1;
   max-width: 100%;
 }
+
+/* Drop Chance Calculator specific styles */
+.drop-chance-container {
+  padding: 2rem;
+  background-color: var(--simulation-card-bg);
+  border-radius: 8px;
+  margin: 1rem;
+  width: 100%;
+  max-width: 800px;
+}
+
+.drop-chance-container .control-group {
+  background-color: rgba(255, 255, 255, 0.05);
+  padding: 2rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+}
+
+.drop-chance-container .slider-group {
+  margin-bottom: 2rem;
+}
+
+.drop-chance-container .result-container {
+  background-color: rgba(255, 255, 255, 0.05);
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin: 2rem 0;
+}
+
+.drop-chance-container .result-text {
+  text-align: center;
+  font-size: 1.1rem;
+  line-height: 1.5;
+}
+
+.drop-chance-container .range-sliders {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+/* Drop Chance Calculator improved styles */
+.drop-chance-container {
+  padding: 2rem;
+  background-color: var(--simulation-card-bg);
+  border-radius: 8px;
+  margin: 1rem auto;
+  width: 100%;
+  max-width: 800px;
+}
+
+.simulation-layout.justify-center {
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.drop-chance-container .control-group {
+  background-color: rgba(255, 255, 255, 0.05);
+  padding: 2rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+}
+
+.drop-chance-container .slider-group {
+  margin-bottom: 2rem;
+  padding-bottom: 0.5rem;
+}
+
+.drop-chance-container .slider-group label {
+  display: block;
+  margin-bottom: 0.75rem;
+  font-weight: 500;
+}
+
+.drop-chance-container .result-container {
+  background-color: rgba(255, 255, 255, 0.05);
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin: 2rem 0;
+}
+
+.drop-chance-container .result-text {
+  text-align: center;
+  font-size: 1.1rem;
+  line-height: 1.5;
+}
+
+.drop-chance-container .range-sliders {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+.drop-chance-container .mini-slider-group {
+  margin-bottom: 0.5rem;
+}
+
+.drop-chance-container .mini-slider-group label {
+  margin-bottom: 0.25rem;
+  font-size: 0.875rem;
+}
+
+/* Add McCabe-Thiele parameter toggle styles to Drop Chance */
+.drop-chance-container .parameter-toggle {
+  display: flex;
+  margin: 1rem 0 2rem;
+}
+
+.drop-chance-container .toggle-btn {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid #4DA6FF;
+  background-color: transparent;
+  color: white;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.drop-chance-container .toggle-btn:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.drop-chance-container .toggle-btn:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.drop-chance-container .toggle-btn.active {
+  background-color: #4DA6FF;
+  color: white;
+}
+
+/* Ensure the slider is visible */
+.drop-chance-container input[type="range"] {
+  display: block;
+  width: 100%;
+  margin-top: 0.5rem;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}

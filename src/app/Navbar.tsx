@@ -10,7 +10,8 @@ const pageTitles: Record<string, string> = {
   '/home': 'Welcome', // Added home path with Welcome title
   '/simulations': 'Chemical Engineering Simulations',
   '/misc': 'Miscellaneous',
-  '/simulations/mccabe-thiele': 'McCabe-Thiele Diagram'
+  '/simulations/mccabe-thiele': 'McCabe-Thiele Diagram',
+  '/misc/drop-chance': 'Drop Chance Calculator'  // Add this line
 };
 
 export default function Navbar({ 
