@@ -12,7 +12,7 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy your application code from the "python" folder into /app
-COPY python/app.py python/mccabe_thiele_calculator.py ./
+COPY python/app.py python/mccabe_thiele_calculator.py python/chemtools.py ./
 
 # Run the web service
 CMD ["sh", "-c", "exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 app:app"]
