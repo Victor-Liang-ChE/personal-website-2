@@ -176,6 +176,7 @@ const StoichiometryCalculator: React.FC = () => {
   const [results, setResults] = useState<StoichiometryResults | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [inputModes, setInputModes] = useState<Record<string, 'moles' | 'grams'>>({});
 
   const handleEquationSubmit = async () => {
     if (!equation) {
@@ -229,6 +230,16 @@ const StoichiometryCalculator: React.FC = () => {
     }));
   };
 
+  const toggleInputMode = (compound: string) => {
+    setInputModes(prev => ({
+      ...prev,
+      [compound]: prev[compound] === 'moles' ? 'grams' : 'moles'
+    }));
+    // Clear both input fields when switching
+    handleInputChange(compound, 'moles', null);
+    handleInputChange(compound, 'grams', null);
+  };
+
   const handleCalculate = async () => {
     setErrorMessage('');
     
@@ -262,7 +273,6 @@ const StoichiometryCalculator: React.FC = () => {
     inputData: InputData, 
     conversionPercentage: number
   ): StoichiometryResults => {
-    // Extract reactants and products data
     const reactants = reaction.reactants;
     const products = reaction.products;
     
@@ -273,23 +283,47 @@ const StoichiometryCalculator: React.FC = () => {
       const compound = reactant.compound;
       if (compound in inputData) {
         const data = inputData[compound];
-        let moles = data.moles;
+        const moles = data.moles;
         const grams = data.grams;
-        const molar_mass = data.molar_mass;
+        const molarMass = data.molar_mass;
+
+        console.log(`Processing ${compound}:`, {
+          moles,
+          grams,
+          molarMass
+        });
         
-        // Convert grams to moles if needed
-        if (moles === undefined && grams !== undefined && molar_mass !== undefined && molar_mass > 0) {
-          moles = grams / molar_mass;
+        // Calculate moles either from direct input or from grams
+        let molesFromInput: number | undefined = undefined;
+        
+        if (moles !== undefined && moles !== null) {
+          // Use directly input moles
+          molesFromInput = moles;
+        } else if (grams !== undefined && grams !== null && molarMass !== undefined && molarMass > 0) {
+          // Convert grams to moles
+          molesFromInput = grams / molarMass;
+          console.log(`Converted ${grams}g of ${compound} to ${molesFromInput} moles using molar mass ${molarMass}`);
         }
-        
-        if (moles !== undefined) {
+
+        // Only add to reactantAmounts if we have valid moles
+        if (molesFromInput !== undefined && !isNaN(molesFromInput)) {
           reactantAmounts[compound] = {
-            moles,
+            moles: molesFromInput,
             coefficient: reactant.coefficient,
-            moles_per_coefficient: moles / reactant.coefficient
+            moles_per_coefficient: molesFromInput / reactant.coefficient
           };
+          console.log(`Added ${compound} to reactantAmounts:`, reactantAmounts[compound]);
+        } else {
+          console.log(`${compound} skipped: no valid moles value`);
         }
       }
+    }
+    
+    console.log('Final reactantAmounts:', reactantAmounts);
+
+    // If fewer than one reactant has amounts, display error
+    if (Object.keys(reactantAmounts).length < 1) {
+      throw new Error("Please provide amount data for at least one reactant");
     }
     
     // Find limiting reactant
@@ -307,7 +341,7 @@ const StoichiometryCalculator: React.FC = () => {
     }
     
     if (!limitingData) {
-      throw new Error("No limiting reactant found. Please provide at least one reactant amount.");
+      throw new Error("No limiting reactant found");
     }
     
     // Apply conversion percentage
@@ -329,6 +363,7 @@ const StoichiometryCalculator: React.FC = () => {
       
       if (compound in reactantAmounts) {
         const moles = reactantAmounts[compound].moles;
+        // Apply conversion factor to used moles
         const usedMoles = limitingData.moles_per_coefficient * coef * conversion;
         const excessMoles = Math.max(0, moles - usedMoles);
         
@@ -366,6 +401,12 @@ const StoichiometryCalculator: React.FC = () => {
     return results;
   };
 
+  useEffect(() => {
+    if (reactionData && showConversion) {
+      handleCalculate();
+    }
+  }, [conversionPercentage]); // Add effect to recalculate when conversion changes
+
   return (
     <div>
       <h2 style={{ marginBottom: '1rem' }}>Stoichiometry Calculator</h2>
@@ -387,29 +428,17 @@ const StoichiometryCalculator: React.FC = () => {
           <button 
             onClick={handleEquationSubmit}
             className="submit-btn"
-            style={{ maxWidth: '150px', marginRight: '1rem' }}
+            style={{ maxWidth: '150px' }}
             disabled={isLoading}
           >
             {isLoading ? 'Processing...' : 'Add Reaction'}
           </button>
-          
-          {reactionData && (
-            <label style={{ display: 'flex', alignItems: 'center' }}>
-              <input 
-                type="checkbox" 
-                checked={showConversion}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setShowConversion(e.target.checked)} 
-                style={{ marginRight: '0.5rem' }}
-              />
-              Specify Conversion
-            </label>
-          )}
         </div>
-        
+
         {errorMessage && (
           <div className="error-message">{errorMessage}</div>
         )}
-        
+
         {reactionData && (
           <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center' }}>
             <div style={{ marginRight: '0.5rem' }}>Reaction:</div>
@@ -428,21 +457,6 @@ const StoichiometryCalculator: React.FC = () => {
                 </React.Fragment>
               ))}
             </div>
-            
-            {showConversion && (
-              <div style={{ marginLeft: '1rem' }}>
-                <div>Conversion: {conversionPercentage}%</div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="1"
-                  value={conversionPercentage}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConversionPercentage(Number(e.target.value))}
-                  style={{ width: '200px' }}
-                />
-              </div>
-            )}
           </div>
         )}
       </div>
@@ -456,6 +470,7 @@ const StoichiometryCalculator: React.FC = () => {
                 {reactionData.reactants.map((reactant, index) => {
                   const compound = reactant.compound;
                   const molarMass = molarMasses[compound];
+                  const mode = inputModes[compound] || 'moles';
                   
                   return (
                     <div 
@@ -467,50 +482,72 @@ const StoichiometryCalculator: React.FC = () => {
                         marginBottom: '1rem'
                       }}
                     >
-                      <div style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>
-                        <ChemicalFormula formula={compound} />
-                        {molarMass ? ` (${molarMass.toFixed(2)} g/mol)` : ''}
-                        {results?.limiting_reactant === compound ? ' (Limiting)' : ''}
-                      </div>
-                      
-                      <div style={{ marginTop: '1rem' }}>
-                        <div className="input-group" style={{ marginBottom: '0.5rem' }}>
-                          <input
-                            type="number"
-                            placeholder="moles"
-                            min="0"
-                            step="0.001"
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                              const value = e.target.value === '' ? null : Number(e.target.value);
-                              handleInputChange(compound, 'moles', value);
-                              // Clear grams field
-                              if (value !== null) {
-                                handleInputChange(compound, 'grams', null);
-                              }
-                            }}
-                            value={inputData[compound]?.moles ?? ''}
-                            style={{ width: '100%' }}
-                          />
+                      <div style={{ 
+                        fontSize: '1.1rem', 
+                        marginBottom: '0.5rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '1rem',
+                        flexWrap: 'wrap'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <ChemicalFormula formula={compound} />
+                          {molarMass ? ` (${molarMass.toFixed(2)} g/mol)` : ''}
+                          {results?.limiting_reactant === compound ? ' (Limiting)' : ''}
                         </div>
                         
-                        <div className="input-group">
-                          <input
-                            type="number"
-                            placeholder="grams"
-                            min="0" 
-                            step="0.001"
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                              const value = e.target.value === '' ? null : Number(e.target.value);
-                              handleInputChange(compound, 'grams', value);
-                              // Clear moles field
-                              if (value !== null) {
-                                handleInputChange(compound, 'moles', null);
-                              }
-                            }}
-                            value={inputData[compound]?.grams ?? ''}
-                            style={{ width: '100%' }}
-                          />
+                        <div className="parameter-toggle" style={{ margin: 0 }}>
+                          <button
+                            type="button"
+                            onClick={() => toggleInputMode(compound)}
+                            className={`toggle-btn ${mode === 'moles' ? 'active' : ''}`}
+                          >
+                            Moles
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => toggleInputMode(compound)}
+                            className={`toggle-btn ${mode === 'grams' ? 'active' : ''}`}
+                          >
+                            Grams
+                          </button>
                         </div>
+                      </div>
+
+                      <div style={{ marginTop: '1rem' }}>
+                        {mode === 'moles' && (
+                          <div className="input-group">
+                            <input
+                              type="number"
+                              placeholder="moles"
+                              min="0"
+                              step="0.001"
+                              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                const value = e.target.value === '' ? null : Number(e.target.value);
+                                handleInputChange(compound, 'moles', value);
+                              }}
+                              value={inputData[compound]?.moles ?? ''}
+                              style={{ width: '100%' }}
+                            />
+                          </div>
+                        )}
+                        
+                        {mode === 'grams' && (
+                          <div className="input-group">
+                            <input
+                              type="number"
+                              placeholder="grams"
+                              min="0" 
+                              step="0.001"
+                              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                const value = e.target.value === '' ? null : Number(e.target.value);
+                                handleInputChange(compound, 'grams', value);
+                              }}
+                              value={inputData[compound]?.grams ?? ''}
+                              style={{ width: '100%' }}
+                            />
+                          </div>
+                        )}
                       </div>
                       
                       {/* Results display */}
@@ -536,39 +573,76 @@ const StoichiometryCalculator: React.FC = () => {
             
             <div style={{ width: '100%' }}>
               <h3>Products</h3>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
-                {reactionData.products.map((product, index) => {
-                  const compound = product.compound;
-                  const molarMass = molarMasses[compound];
+              <div className="control-group" style={{ marginBottom: '1rem', padding: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', marginRight: '1rem' }}>
+                    <input 
+                      type="checkbox"
+                      checked={showConversion}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setShowConversion(e.target.checked)} 
+                      style={{ marginRight: '0.5rem' }}
+                    />
+                    Specify Conversion
+                  </label>
                   
-                  return (
-                    <div 
-                      key={`product-input-${index}`}
-                      className="control-group"
-                      style={{ 
-                        flex: '1 0 250px', 
-                        padding: '1rem',
-                        marginBottom: '1rem'
-                      }}
-                    >
-                      <div style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>
-                        <ChemicalFormula formula={compound} />
-                        {molarMass ? ` (${molarMass.toFixed(2)} g/mol)` : ''}
-                      </div>
-                      
-                      {/* Results display */}
-                      {results && results.products[compound] && (
-                        <div style={{ marginTop: '1rem' }}>
-                          <div>
-                            Produced: {results.products[compound].produced_moles.toFixed(3)} mol
-                            {results.products[compound].produced_grams !== undefined && 
-                              ` (${results.products[compound].produced_grams.toFixed(3)} g)`}
-                          </div>
-                        </div>
-                      )}
+                  {showConversion && (
+                    <div style={{ flex: 1 }}>
+                      <div>Conversion: {conversionPercentage}%</div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        step="1"
+                        value={conversionPercentage}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConversionPercentage(Number(e.target.value))}
+                        style={{ 
+                          width: '100%',
+                          height: '8px',
+                          borderRadius: '4px',
+                          background: 'linear-gradient(to right, #4a90e2 0%, #4a90e2 ' + conversionPercentage + '%, #2c3e50 ' + conversionPercentage + '%, #2c3e50 100%)',
+                          WebkitAppearance: 'none',
+                          appearance: 'none',
+                          cursor: 'pointer'
+                        }}
+                      />
                     </div>
-                  );
-                })}
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
+                  {reactionData.products.map((product, index) => {
+                    const compound = product.compound;
+                    const molarMass = molarMasses[compound];
+                    
+                    return (
+                      <div 
+                        key={`product-input-${index}`}
+                        style={{ 
+                          flex: '1 0 250px',
+                          padding: '1rem',
+                          marginBottom: '1rem',
+                          borderTop: '1px solid rgba(255,255,255,0.2)'
+                        }}
+                      >
+                        <div style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>
+                          <ChemicalFormula formula={compound} />
+                          {molarMass ? ` (${molarMass.toFixed(2)} g/mol)` : ''}
+                        </div>
+                        
+                        {/* Results display */}
+                        {results && results.products[compound] && (
+                          <div style={{ marginTop: '1rem' }}>
+                            <div>
+                              Produced: {results.products[compound].produced_moles.toFixed(3)} mol
+                              {results.products[compound].produced_grams !== undefined && 
+                                ` (${results.products[compound].produced_grams.toFixed(3)} g)`}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>

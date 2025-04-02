@@ -7,11 +7,12 @@ import { usePathname } from 'next/navigation';
 // Define page titles mapping
 const pageTitles: Record<string, string> = {
   '/': 'Welcome',
-  '/home': 'Welcome', // Added home path with Welcome title
+  '/home': 'Welcome', 
   '/simulations': 'Chemical Engineering Simulations',
   '/misc': 'Miscellaneous',
   '/simulations/mccabe-thiele': 'McCabe-Thiele Diagram',
-  '/misc/drop-chance': 'Drop Chance Calculator'  // Add this line
+  '/misc/drop-chance': 'Drop Chance Calculator',
+  '/misc/chemistry-tools': 'Chemistry Tools'
 };
 
 export default function Navbar({ 
