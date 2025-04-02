@@ -5,3 +5,6 @@ thermo
 chempy
 pubchempy
 rdkit
+requests
+beautifulsoup4
+pytz
