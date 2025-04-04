@@ -401,7 +401,7 @@ export default function KineticsPage() {
       if (allFieldsFilled()) {
         submitForm();
       }
-    }, 100)); // 100ms debounce
+    }, 0.1));
   };
 
   return (
