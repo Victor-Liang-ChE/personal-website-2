@@ -11,6 +11,7 @@ const pageTitles: Record<string, string> = {
   '/simulations': 'Chemical Engineering Simulations',
   '/misc': 'Miscellaneous',
   '/simulations/mccabe-thiele': 'McCabe-Thiele Diagram',
+  '/simulations/kinetics': 'Kinetics', // Add this line
   '/misc/drop-chance': 'Drop Chance Calculator',
   '/misc/chemistry-tools': 'Chemistry Tools'
 };
