@@ -860,7 +860,7 @@ button:hover, .btn:hover, a.btn:hover {
 .slider-group input[type="range"]#xd::-moz-range-thumb {
   background: orange;
 }
-.slider-group input[type="range"]#xd::-webkit-slider-runnable-track {
+slider-group input[type="range"]#xd::-webkit-slider-runnable-track {
   background: rgba(255, 165, 0, 0.3);
 }
 .slider-group input[type="range"]#xd::-moz-range-track {
@@ -888,7 +888,7 @@ button:hover, .btn:hover, a.btn:hover {
 .slider-group input[type="range"]#xf::-moz-range-thumb {
   background: red;
 }
-.slider-group input[type="range"]#xf::-webkit-slider-runnable-track {
+slider-group input[type="range"]#xf::-webkit-slider-runnable-track {
   background: rgba(255, 0, 0, 0.3);
 }
 .slider-group input[type="range"]#xf::-moz-range-track {
@@ -1264,4 +1264,91 @@ button:hover, .btn:hover, a.btn:hover {
 .input-group input[type="text"],
 .horizontal-input-group input {
   font-family: 'Merriweather Sans', sans-serif !important;
+}
+
+/* Elementary reaction input styles */
+.elementary-reaction-input {
+  width: 160px !important;  /* Set fixed width */
+  padding: 0.5rem !important;
+  border: 1px solid #4DA6FF;
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-color);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-family: 'Merriweather Sans', sans-serif;
+}
+
+.elementary-reaction-group {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+  gap: 8px;
+  flex-wrap: nowrap; /* Prevent stacking */
+  width: 100%; /* Increase width to fit both input boxes */
+}
+
+.elementary-reaction-input {
+  padding: 0.5rem;
+  border: 1px solid var(--accent-color);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-color);
+  flex: 1; /* Allow input to grow/shrink */
+  min-width: 100px; /* Set a minimum width */
+}
+
+.elementary-reaction-input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px rgba(77, 166, 255, 0.2);
+}
+
+.elementary-reaction-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Make sure the kinetics sliders match the chemistry tool sliders */
+.kinetics-slider::-webkit-slider-thumb {
+  background: var(--accent-color) !important;
+}
+
+.kinetics-slider::-moz-range-thumb {
+  background: var(--accent-color) !important;
+}
+
+.kinetics-slider::-webkit-slider-runnable-track {
+  background: rgba(77, 166, 255, 0.2) !important;
+}
+
+.kinetics-slider::-moz-range-track {
+  background: rgba(77, 166, 255, 0.2) !important;
+}
+
+/* Adjust button spacing */
+.flex-wrap.gap-4 > button {
+  margin-bottom: 0.5rem; /* Add spacing between buttons */
+}
+
+/* Fix input box alignment */
+.elementary-reaction-input {
+  padding: 0.5rem;
+  border: 1px solid var(--accent-color);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-color);
+  flex: 1; /* Allow input to grow/shrink */
+  min-width: 100px; /* Set a minimum width */
+}
+
+.elementary-reaction-input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px rgba(77, 166, 255, 0.2);
+}
+
+/* Adjust spacing for initial concentration labels */
+.slider-group label span:first-child {
+  margin-right: 4px; /* Add space between `:` and number */
 }

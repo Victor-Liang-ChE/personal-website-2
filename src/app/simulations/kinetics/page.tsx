@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useEffect, KeyboardEvent } from 'react';
 import dynamic from 'next/dynamic';
-import { usePathname } from 'next/navigation';
 
 // Import Plotly dynamically to avoid SSR issues
 const Plot = dynamic(() => import('react-plotly.js'), { ssr: false });
@@ -48,37 +47,122 @@ function formatSpecies(species: string): React.ReactNode {
   );
 }
 
-// 4th-order Runge-Kutta method for ODE solving
-function solveODE(
-  dydt: (t: number, y: number[]) => number[], 
-  y0: number[], 
-  tSpan: [number, number], 
-  numPoints: number
-): { t: number[], y: number[][] } {
+// Replace the RK4 solver with the Adaptive RK45 solver
+/**
+ * Adaptive RK45 solver using the Dormand–Prince method.
+ *
+ * @param dydt - The derivative function f(t, y) that returns an array of derivatives.
+ * @param y0 - Initial conditions (array of numbers).
+ * @param tSpan - [t0, tf] time span for the simulation.
+ * @param tol - Tolerance for the error estimate (default 1e-6).
+ * @param h_initial - Initial step size (default 0.1).
+ * @param maxSteps - Maximum number of steps allowed (default 10000).
+ * @returns Object containing arrays of time points (t) and corresponding states (y). y is an array of arrays, where each inner array represents the state at a specific time point.
+ */
+function solveODERK45(
+  dydt: (t: number, y: number[]) => number[],
+  y0: number[],
+  tSpan: [number, number],
+  tol: number = 1e-6,
+  h_initial: number = 0.1,
+  maxSteps: number = 10000
+): { t: number[]; y: number[][] } {
   const [t0, tf] = tSpan;
-  const h = (tf - t0) / numPoints;
-  const t = Array(numPoints + 1).fill(0).map((_, i) => t0 + i * h);
-  const y: number[][] = Array(y0.length).fill(0).map(() => Array(numPoints + 1).fill(0));
-  
-  // Set initial conditions
-  y0.forEach((val, i) => { y[i][0] = val; });
-  
-  // RK4 integration
-  for (let i = 0; i < numPoints; i++) {
-    const ti = t[i];
-    const yi = y0.map((_, j) => y[j][i]);
-    
-    const k1 = dydt(ti, yi);
-    const k2 = dydt(ti + h/2, yi.map((yij, j) => yij + k1[j] * h/2));
-    const k3 = dydt(ti + h/2, yi.map((yij, j) => yij + k2[j] * h/2));
-    const k4 = dydt(ti + h, yi.map((yij, j) => yij + k3[j] * h));
-    
-    for (let j = 0; j < y0.length; j++) {
-      y[j][i + 1] = yi[j] + (h/6) * (k1[j] + 2*k2[j] + 2*k3[j] + k4[j]);
+  let t = t0;
+  let y = y0.slice(); // copy initial state
+  const t_arr = [t];
+  const y_arr = [y.slice()]; // y_arr stores states at each time step
+
+  // Adaptive step parameters
+  let h = h_initial;
+  const safety = 0.84;
+  const minFactor = 0.2;
+  const maxFactor = 5.0;
+
+  // Dormand–Prince coefficients (RK45)
+  // c values
+  const c2 = 1/5, c3 = 3/10, c4 = 4/5, c5 = 8/9, c6 = 1, c7 = 1;
+  // a coefficients (lower-triangular matrix)
+  const a21 = 1/5;
+  const a31 = 3/40,  a32 = 9/40;
+  const a41 = 44/45, a42 = -56/15, a43 = 32/9;
+  const a51 = 19372/6561, a52 = -25360/2187, a53 = 64448/6561, a54 = -212/729;
+  const a61 = 9017/3168,  a62 = -355/33,    a63 = 46732/5247, a64 = 49/176,  a65 = -5103/18656;
+  const a71 = 35/384,   a72 = 0,          a73 = 500/1113,  a74 = 125/192, a75 = -2187/6784, a76 = 11/84;
+  // b coefficients for the 5th‑order solution
+  const b1 = 35/384, b2 = 0, b3 = 500/1113, b4 = 125/192, b5 = -2187/6784, b6 = 11/84, b7 = 0;
+  // b* coefficients for the 4th‑order solution
+  const b1s = 5179/57600, b2s = 0, b3s = 7571/16695, b4s = 393/640, b5s = -92097/339200, b6s = 187/2100, b7s = 1/40;
+
+  let stepCount = 0;
+  while (t < tf && stepCount < maxSteps) {
+    // Adjust final step if necessary
+    if (t + h > tf) {
+      h = tf - t;
+    }
+    if (h <= 0) break; // Prevent infinite loop if h becomes non-positive
+
+    // Compute the RK stages:
+    const k1 = dydt(t, y);
+    const y2 = y.map((yi, i) => yi + h * a21 * k1[i]);
+    const k2 = dydt(t + c2 * h, y2);
+    const y3 = y.map((yi, i) => yi + h * (a31 * k1[i] + a32 * k2[i]));
+    const k3 = dydt(t + c3 * h, y3);
+    const y4 = y.map((yi, i) => yi + h * (a41 * k1[i] + a42 * k2[i] + a43 * k3[i]));
+    const k4 = dydt(t + c4 * h, y4);
+    const y5 = y.map((yi, i) => yi + h * (a51 * k1[i] + a52 * k2[i] + a53 * k3[i] + a54 * k4[i]));
+    const k5 = dydt(t + c5 * h, y5);
+    const y6 = y.map((yi, i) => yi + h * (a61 * k1[i] + a62 * k2[i] + a63 * k3[i] + a64 * k4[i] + a65 * k5[i]));
+    const k6 = dydt(t + c6 * h, y6);
+    const y7 = y.map((yi, i) => yi + h * (a71 * k1[i] + a72 * k2[i] + a73 * k3[i] + a74 * k4[i] + a75 * k5[i] + a76 * k6[i]));
+    const k7 = dydt(t + c7 * h, y7);
+
+    // Compute 5th-order solution
+    const y5th = y.map((yi, i) =>
+      yi + h * (b1 * k1[i] + b2 * k2[i] + b3 * k3[i] + b4 * k4[i] + b5 * k5[i] + b6 * k6[i] + b7 * k7[i])
+    );
+    // Compute 4th-order solution
+    const y4th = y.map((yi, i) =>
+      yi + h * (b1s * k1[i] + b2s * k2[i] + b3s * k3[i] + b4s * k4[i] + b5s * k5[i] + b6s * k6[i] + b7s * k7[i])
+    );
+
+    // Estimate the error using the maximum absolute difference
+    let error = 0;
+    for (let i = 0; i < y.length; i++) {
+      error = Math.max(error, Math.abs(y5th[i] - y4th[i]));
+    }
+    error = error || 1e-10; // Avoid division by zero if error is exactly 0
+
+    // If error is within tolerance, accept the step
+    if (error <= tol) {
+      t += h;
+      y = y5th.slice();
+      t_arr.push(t);
+      y_arr.push(y.slice());
+    }
+
+    // Adjust the step size for the next iteration.
+    const factor = safety * Math.pow(tol / error, 1 / 5);
+    const factorClamped = Math.min(maxFactor, Math.max(minFactor, factor));
+    h = h * factorClamped;
+    stepCount++;
+  }
+
+  if (stepCount >= maxSteps) {
+    console.warn(`RK45 solver reached maximum steps (${maxSteps})`);
+  }
+
+  // Transpose y_arr to match the previous format (rows = species, cols = time points)
+  const numSpecies = y0.length;
+  const numTimePoints = t_arr.length;
+  const y_transposed: number[][] = Array.from({ length: numSpecies }, () => Array(numTimePoints).fill(0));
+  for (let i = 0; i < numTimePoints; i++) {
+    for (let j = 0; j < numSpecies; j++) {
+      y_transposed[j][i] = y_arr[i][j];
     }
   }
-  
-  return { t, y };
+
+  return { t: t_arr, y: y_transposed };
 }
 
 // Function to generate the reaction graph
@@ -152,19 +236,22 @@ function reactionGraphing(
 
   // Time span for the simulation
   const tSpan: [number, number] = [0, 10];
-  const numPoints = 100;
+  // numPoints is not needed for adaptive solver, but we need initial step size and tolerance
+  const initial_h = 0.01; // Smaller initial step might be better
+  const tolerance = 1e-5; // Adjust tolerance as needed
 
-  // Solve the ODEs using RK4
-  const solution = solveODE(odes, y0, tSpan, numPoints);
+  // Solve the ODEs using the RK45 solver
+  const solution = solveODERK45(odes, y0, tSpan, tolerance, initial_h); // Updated function call
 
-  // Determine the steady state time
-  const maxConcentration = Math.max(...solution.y.flatMap(arr => arr));
+  // Determine the steady state time (using the new solution format)
+  const maxConcentration = Math.max(...solution.y.flat()); // Use flat() on the transposed array
   const relativeTolerance = maxConcentration * 1e-4;
   
   let steadyStateTime = tSpan[1];
   for (let i = 1; i < solution.t.length; i++) {
+    // Access solution.y[speciesIndex][timeIndex]
     const concentrationDiff = orderedSpecies.map((_, j) => 
-      Math.abs(solution.y[j][i] - solution.y[j][i-1]));
+      Math.abs(solution.y[j][i] - solution.y[j][i-1])); 
     
     if (concentrationDiff.every(diff => diff < relativeTolerance)) {
       steadyStateTime = solution.t[i];
@@ -172,24 +259,31 @@ function reactionGraphing(
     }
   }
 
-  // Create the plotly data
+  // Format species names with subscripted numbers in the legend
   const traces = orderedSpecies.map((species, i) => ({
     x: solution.t,
-    y: solution.y[i],
+    y: solution.y[i], // Access the i-th row (species) of the transposed solution
     type: 'scatter',
     mode: 'lines',
-    name: species
+    name: species.replace(/(\d+)/g, '<sub>$1</sub>'), 
+    hovertemplate: `${species.replace(/(\d+)/g, '<sub>$1</sub>')}: %{y:.2f}<extra></extra>` 
   }));
 
-  // Define the layout
+  // Calculate dynamic y-axis range with buffer
+  const allYValues = solution.y.flat();
+  const minY = Math.min(0, ...allYValues); 
+  const maxY = Math.max(...allYValues);
+  const yRange = [minY, maxY * 1.1 + 1e-9]; 
+
+  // Ensure subscripted numbers in the legend and make axes visible
   const layout = {
     title: {
-      text: 'Concentrations vs. Time',
+      text: 'Concentration Profiles',
       font: { size: 24, family: 'Merriweather Sans', color: 'white' }
     },
     xaxis: {
-      title: 'Time',
-      showgrid: false,
+      title: { text: 'Time', font: { size: 18, family: 'Merriweather Sans', color: 'white' } },
+      showgrid: true, // Ensure grid is visible
       zeroline: true,
       zerolinecolor: 'white',
       zerolinewidth: 2,
@@ -200,12 +294,12 @@ function reactionGraphing(
       ticklen: 8,
       tickwidth: 2,
       tickcolor: 'white',
-      titlefont: { size: 18, family: 'Merriweather Sans', color: 'white' },
       tickfont: { size: 14, family: 'Merriweather Sans', color: 'white' },
+      range: [0, steadyStateTime] // Dynamically set x-axis range
     },
     yaxis: {
-      title: 'Concentration',
-      showgrid: false,
+      title: { text: 'Concentration', font: { size: 18, family: 'Merriweather Sans', color: 'white' } },
+      showgrid: true, // Ensure grid is visible
       zeroline: true,
       zerolinecolor: 'white',
       zerolinewidth: 2,
@@ -216,8 +310,8 @@ function reactionGraphing(
       ticklen: 8,
       tickwidth: 2,
       tickcolor: 'white',
-      titlefont: { size: 18, family: 'Merriweather Sans', color: 'white' },
       tickfont: { size: 14, family: 'Merriweather Sans', color: 'white' },
+      range: yRange // Dynamically set y-axis range
     },
     legend: {
       font: { color: 'white', family: 'Merriweather Sans' },
@@ -235,32 +329,49 @@ function reactionGraphing(
 }
 
 export default function KineticsPage() {
+  // Default reaction setup
+  const defaultReaction = '2H2 + O2 -> 2H2O';
+  const defaultReactants = '2H2 + O2';
+  const defaultProducts = '2H2O';
+  const defaultRateConstant = 1;
+  const defaultSpecies = detectUniqueSpeciesOrdered([defaultReaction]);
+  const defaultConcentrations: Record<string, number | ''> = {};
+  defaultSpecies.forEach(sp => { defaultConcentrations[sp] = 1; });
+
   const [reactionInputs, setReactionInputs] = useState<{ 
     reaction: string; 
     reactants: string;
     products: string;
     rateConstant: number | '' 
   }[]>([{ 
-    reaction: '', 
-    reactants: '',
-    products: '',
-    rateConstant: 1 
+    reaction: defaultReaction, 
+    reactants: defaultReactants,
+    products: defaultProducts,
+    rateConstant: defaultRateConstant 
   }]);
-  const [confirmedReactions, setConfirmedReactions] = useState<boolean>(false);
-  const [species, setSpecies] = useState<string[]>([]);
-  const [concentrations, setConcentrations] = useState<Record<string, number | ''>>({});
+  // Start with confirmed state and detected species/concentrations
+  const [confirmedReactions, setConfirmedReactions] = useState<boolean>(true); 
+  const [species, setSpecies] = useState<string[]>(defaultSpecies);
+  const [concentrations, setConcentrations] = useState<Record<string, number | ''>>(defaultConcentrations);
   const [plotData, setPlotData] = useState<any>(null);
-  const [showGraph, setShowGraph] = useState<boolean>(false);
-  const [debounceTimeout, setDebounceTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [showGraph, setShowGraph] = useState<boolean>(true); // Show graph initially
   
+  // Generate initial plot on mount
+  useEffect(() => {
+    const initialPlotData = reactionGraphing(
+      [defaultReaction], 
+      [defaultRateConstant], 
+      defaultConcentrations as Record<string, number>
+    );
+    setPlotData(initialPlotData);
+  }, []); // Empty dependency array ensures this runs only once on mount
+
   // Set the page title in the Navbar
   useEffect(() => {
     const title = document.querySelector('.page-title');
     if (title) {
       title.textContent = 'Reaction Kinetics Simulator';
     }
-    
-    // Update navbar layout to ensure title is visible
     const navbar = document.querySelector('.navbar-wrapper');
     if (navbar) {
       navbar.classList.add('with-title');
@@ -302,11 +413,11 @@ export default function KineticsPage() {
     setReactionInputs(newInputs);
   };
 
-  // Handle keyboard events for reaction inputs
+  // Handle keyboard events for reaction inputs to trigger confirm button
   const handleReactionKeyDown = (e: KeyboardEvent<HTMLInputElement>, index: number) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      confirmReactions();
+      confirmReactions(); // Trigger confirm button
     }
   };
 
@@ -318,7 +429,7 @@ export default function KineticsPage() {
     }
   };
 
-  // Confirm reactions and detect species
+  // Confirm reactions and update plot
   const confirmReactions = () => {
     const validReactions = reactionInputs
       .filter(input => input.reaction.trim() !== '')
@@ -326,16 +437,39 @@ export default function KineticsPage() {
     
     if (validReactions.length > 0) {
       const detectedSpecies = detectUniqueSpeciesOrdered(validReactions);
-      setSpecies(detectedSpecies);
+      setSpecies(detectedSpecies); // Update the species list
       
-      // Initialize concentrations
-      const initialConcentrations: Record<string, number | ''> = {};
-      detectedSpecies.forEach(species => {
-        initialConcentrations[species] = 1; // Default value of 1
+      // Prepare the concentrations for the plot
+      const currentConcentrationsState = { ...concentrations }; // Get current state
+      const concentrationsForPlot: Record<string, number> = {};
+      const nextConcentrationsState: Record<string, number | ''> = {};
+
+      detectedSpecies.forEach(sp => {
+        const currentValue = currentConcentrationsState.hasOwnProperty(sp) 
+                             ? currentConcentrationsState[sp] 
+                             : 1; // Default to 1 if new
+        nextConcentrationsState[sp] = currentValue; // Update state for UI
+        concentrationsForPlot[sp] = typeof currentValue === 'number' ? currentValue : 1; // Ensure number for plot
       });
-      setConcentrations(initialConcentrations);
       
-      setConfirmedReactions(true);
+      setConcentrations(nextConcentrationsState); // Update the concentration state for UI
+      setConfirmedReactions(true); 
+
+      // Get current rate constants
+      const validRateConstants = reactionInputs
+        .filter(input => input.reaction.trim() !== '')
+        .map(input => typeof input.rateConstant === 'number' ? input.rateConstant : 1);
+
+      // Immediately regenerate the plot with the new species and prepared concentrations
+      submitForm(validReactions, validRateConstants, concentrationsForPlot); 
+
+    } else {
+      // Handle case where there are no valid reactions after confirm
+      setSpecies([]);
+      setConcentrations({});
+      setPlotData(null);
+      setShowGraph(false);
+      setConfirmedReactions(false);
     }
   };
 
@@ -345,18 +479,38 @@ export default function KineticsPage() {
   };
 
   // Submit the form and generate the graph
-  const submitForm = () => {
-    const validReactions = reactionInputs
+  // Modify to accept optional arguments for direct use in confirmReactions
+  const submitForm = (
+    reactionsToUse?: string[], 
+    ksToUse?: number[], 
+    concentrationsToUse?: Record<string, number>
+  ) => {
+    // Use provided arguments if available, otherwise use state
+    const validReactions = reactionsToUse ?? reactionInputs
       .filter(input => input.reaction.trim() !== '')
       .map(input => input.reaction);
     
-    const validRateConstants = reactionInputs
+    const validRateConstants = ksToUse ?? reactionInputs
       .filter(input => input.reaction.trim() !== '')
       .map(input => typeof input.rateConstant === 'number' ? input.rateConstant : 1);
     
-    const validConcentrations: Record<string, number> = {};
-    for (const [species, concentration] of Object.entries(concentrations)) {
-      validConcentrations[species] = typeof concentration === 'number' ? concentration : 1;
+    const validConcentrations = concentrationsToUse ?? (() => {
+        const stateConcentrations: Record<string, number> = {};
+        for (const [sp, conc] of Object.entries(concentrations)) {
+            stateConcentrations[sp] = typeof conc === 'number' ? conc : 1; // Default to 1 if empty
+        }
+        return stateConcentrations;
+    })();
+
+    // Ensure all necessary species have concentrations before plotting
+    const currentSpecies = detectUniqueSpeciesOrdered(validReactions);
+    const allSpeciesPresent = currentSpecies.every(sp => validConcentrations.hasOwnProperty(sp));
+
+    if (!allSpeciesPresent) {
+        console.error("Concentration data is not ready for all species yet.");
+        // Optionally alert the user or handle this state
+        // alert("Concentration data is missing for some species. Please adjust inputs.");
+        return; // Prevent plotting if data is incomplete
     }
     
     try {
@@ -385,23 +539,25 @@ export default function KineticsPage() {
     return value.toFixed(2);
   };
 
-  // Handle slider change with debounce
+  // Handle slider change without debounce
   const handleSliderChange = (type: string, index: number | string, value: number) => {
-    if (debounceTimeout) {
-      clearTimeout(debounceTimeout);
+    // Update state immediately
+    if (type === 'rateConstant') {
+      // Need to update reactionInputs state directly here or call handleReactionChange
+      // Let's call handleReactionChange for consistency
+      handleReactionChange(index as number, 'rateConstant', value);
+    } else if (type === 'concentration') {
+      // Call handleConcentrationChange to update state
+      handleConcentrationChange(index as string, value);
     }
-  
-    setDebounceTimeout(setTimeout(() => {
-      if (type === 'rateConstant') {
-        handleReactionChange(index as number, 'rateConstant', value);
-      } else if (type === 'concentration') {
-        handleConcentrationChange(index as string, value);
-      }
-      // Trigger graph update if all fields are filled
-      if (allFieldsFilled()) {
-        submitForm();
-      }
-    }, 0.1));
+
+    // Trigger graph update immediately after state update is likely processed
+    // Use a microtask (Promise.resolve) to ensure state update is flushed before submitForm reads it
+    Promise.resolve().then(() => {
+        if (allFieldsFilled()) {
+            submitForm(); // Call without arguments to use current state
+        }
+    });
   };
 
   return (
@@ -415,30 +571,28 @@ export default function KineticsPage() {
             <div className="mb-4">
               {reactionInputs.map((input, index) => (
                 <div key={index} className="reaction-input mb-6">
-                  <div className="horizontal-input-group" style={{ alignItems: 'center' }}>
-                    <div style={{ display: 'flex', flexGrow: 1, alignItems: 'center', gap: '8px' }}>
-                      <input
-                        value={input.reactants}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
-                          handleReactionChange(index, 'reactants', e.target.value)}
-                        onKeyDown={(e) => handleReactionKeyDown(e, index)}
-                        placeholder="2H2 + O2"
-                        className="elementary-reaction-input"
-                        style={{ flexGrow: 1 }}
-                      />
-                      <div style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: '0 4px', color: 'var(--text-color)' }}>
-                        →
-                      </div>
-                      <input
-                        value={input.products}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
-                          handleReactionChange(index, 'products', e.target.value)}
-                        onKeyDown={(e) => handleReactionKeyDown(e, index)}
-                        placeholder="2H2O"
-                        className="elementary-reaction-input"
-                        style={{ flexGrow: 1 }}
-                      />
+                  <div className="elementary-reaction-group" style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
+                    <input
+                      value={input.reactants}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
+                        handleReactionChange(index, 'reactants', e.target.value)}
+                      onKeyDown={(e) => handleReactionKeyDown(e, index)}
+                      placeholder="2H2 + O2"
+                      className="elementary-reaction-input"
+                      style={{ flex: '1', minWidth: '100px' }}
+                    />
+                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: '0 4px', color: 'var(--text-color)' }}>
+                      →
                     </div>
+                    <input
+                      value={input.products}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
+                        handleReactionChange(index, 'products', e.target.value)}
+                      onKeyDown={(e) => handleReactionKeyDown(e, index)}
+                      placeholder="2H2O"
+                      className="elementary-reaction-input"
+                      style={{ flex: '1', minWidth: '100px' }}
+                    />
                   </div>
                   
                   <div className="slider-group">
@@ -460,7 +614,7 @@ export default function KineticsPage() {
               ))}
             </div>
             
-            <div className="flex flex-wrap gap-2 mb-4">
+            <div className="flex flex-wrap gap-4 mb-4">
               <button 
                 onClick={addReactionInput} 
                 className="submit-btn bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded"
@@ -472,7 +626,7 @@ export default function KineticsPage() {
                 className="submit-btn bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded"
                 disabled={reactionInputs.length <= 1}
               >
-                Remove Reaction
+                Remove Last Reaction
               </button>
               <button 
                 onClick={confirmReactions}
@@ -483,8 +637,8 @@ export default function KineticsPage() {
             </div>
           </div>
           
-          {/* Initial concentrations box (appears after confirming reactions) */}
-          {confirmedReactions && (
+          {/* Initial concentrations box - always show if species exist */}
+          {species.length > 0 && (
             <div className="control-group">
               <h3 className="text-xl mb-4">Initial Concentrations</h3>
               <div className="flex flex-col gap-4 mb-4">
@@ -507,21 +661,13 @@ export default function KineticsPage() {
                   </div>
                 ))}
               </div>
-              
-              <button 
-                onClick={submitForm} 
-                disabled={!allFieldsFilled()}
-                className="submit-btn bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded w-full disabled:opacity-50"
-              >
-                Generate Plot
-              </button>
             </div>
           )}
         </div>
 
-        {/* Right side - Graph */}
+        {/* Right side - Graph - Show if plotData exists */}
         <div className="simulation-display">
-          {showGraph && plotData ? (
+          {plotData ? (
             <div className="simulation-graph">
               <Plot
                 data={plotData.data}
@@ -532,9 +678,7 @@ export default function KineticsPage() {
             </div>
           ) : (
             <div className="empty-plot">
-              {confirmedReactions ? 
-                "Adjust initial concentrations and click 'Generate Plot'" : 
-                "Enter reactions and click 'Confirm' to start"}
+              Loading graph... 
             </div>
           )}
         </div>
@@ -592,82 +736,45 @@ export default function KineticsPage() {
           width: 100%;
           margin-bottom: 0.5rem;
         }
-        
-        .submit-btn {
-          min-width: 100px;
-        }
-        
-        .reaction-input {
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 6px;
-          padding: 1rem;
-          margin-bottom: 1rem;
-          background-color: rgba(0, 0, 0, 0.1);
-        }
-        
-        .elementary-reaction-input {
-          width: 100%;
-          padding: 0.75rem;
-          background: rgba(0, 0, 0, 0.2);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 6px;
-          color: white;
-          font-family: 'Merriweather Sans', sans-serif;
-          font-size: 1rem;
-          transition: border-color 0.2s, box-shadow 0.2s;
-        }
 
-        .elementary-reaction-input:focus {
-          outline: none;
-          border-color: #4DA6FF;
-          box-shadow: 0 0 0 2px rgba(77, 166, 255, 0.2);
-        }
-
-        .elementary-reaction-input::placeholder {
-          color: rgba(255, 255, 255, 0.5);
-        }
-
-        .kinetics-slider {
+        input[type="range"] {
           -webkit-appearance: none;
           width: 100%;
-          height: 6px;
-          background: rgba(77, 166, 255, 0.2);
-          border-radius: 3px;
-          outline: none;
+          height: 4px;
+          border-radius: 2px;
+          background: rgba(255, 165, 0, 0.3);
           margin: 10px 0;
-          background-image: linear-gradient(#4DA6FF, #4DA6FF);
-          background-repeat: no-repeat;
         }
 
-        .kinetics-slider::-webkit-slider-thumb {
+        input[type="range"]::-webkit-slider-thumb {
           -webkit-appearance: none;
-          width: 18px;
-          height: 18px;
-          background: #4DA6FF;
+          height: 16px;
+          width: 16px;
           border-radius: 50%;
+          background: orange;
           cursor: pointer;
-          border: 2px solid rgba(255, 255, 255, 0.8);
-          box-shadow: 0 0 4px rgba(0, 0, 0, 0.2);
-          transition: transform 0.1s;
+          border: none;
         }
 
-        .kinetics-slider::-webkit-slider-thumb:hover {
-          transform: scale(1.1);
-        }
-
-        .kinetics-slider::-moz-range-thumb {
-          width: 18px;
-          height: 18px;
-          background: #4DA6FF;
+        input[type="range"]::-moz-range-thumb {
+          height: 16px;
+          width: 16px;
           border-radius: 50%;
+          background: orange;
           cursor: pointer;
-          border: 2px solid rgba(255, 255, 255, 0.8);
-          box-shadow: 0 0 4px rgba(0, 0, 0, 0.2);
-          transition: transform 0.1s;
+          border: none;
         }
 
-        .kinetics-slider::-moz-range-thumb:hover {
-          transform: scale(1.1);
+        input[type="range"]::-webkit-slider-runnable-track {
+          width: 100%;
+          height: 4px;
+          border-radius: 2px;
+        }
+
+        input[type="range"]::-moz-range-track {
+          width: 100%;
+          height: 4px;
+          border-radius: 2px;
         }
         
         @media (max-width: 1024px) {
