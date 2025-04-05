@@ -34,7 +34,7 @@ export default function Navbar({
   
   // Initialize dark mode from localStorage when component mounts
   useEffect(() => {
-    setMounted(true);
+    setMounted(true); // Set mounted to true only on the client
     const savedMode = localStorage.getItem('darkMode');
     if (savedMode !== null) {
       setDarkMode(savedMode === 'true');
@@ -63,10 +63,12 @@ export default function Navbar({
     <>
       {/* Use a static classname that won't change between SSR and hydration */}
       <div id="background-overlay" />
-      <div className={`navbar-wrapper ${mounted ? (darkMode ? 'dark-mode' : 'light-mode') : 'dark-mode'}`}>
+      {/* Default to dark-mode class server-side, update client-side */}
+      <div className={`navbar-wrapper ${darkMode ? 'dark-mode' : 'light-mode'}`}>
         <Link href="/" className="navbar-brand">Victor Liang</Link>
         
-        {pageTitle && (
+        {/* Only render the page title div once mounted on the client */}
+        {mounted && pageTitle && (
           <div className="page-title">{pageTitle}</div>
         )}
         

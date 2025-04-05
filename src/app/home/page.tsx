@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import React from 'react';
+import Link from 'next/link'; // Import Link
 
 // URLs
 const githubLogoUrl = "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png";
@@ -104,45 +105,86 @@ export default function HomePage() {
       <div className="simulations-showcase">
         <h2 className="simulations-title">Featured Simulations</h2>
         <div className="simulations-grid">
-          <a href="/simulations/kinetics" className="simulation-card">
-            <div className="simulation-image">Kinetics Simulator</div>
-            <div className="simulation-content">
-              <h3 className="simulation-title">Kinetics Simulator</h3>
-              <p className="simulation-description">
-                Interactive simulator for chemical reaction kinetics. Model various reaction types and visualize concentration profiles over time with adjustable parameters.
-              </p>
-            </div>
-          </a>
           
-          <a href="/simulations/mccabe-thiele" className="simulation-card">
-            <div className="simulation-image">McCabe-Thiele Method</div>
+          {/* McCabe-Thiele Card */}
+          <Link href="/simulations/mccabe-thiele" className="simulation-card block">
+            <div className="simulation-image">
+              <Image
+                src="/images/simulations/mccabe_thumbnail.png" // Path from simulations page
+                alt="McCabe-Thiele Method Thumbnail"
+                width={400} 
+                height={180} 
+                className="w-full h-full object-cover" 
+                unoptimized={true} 
+              />
+            </div>
             <div className="simulation-content">
               <h3 className="simulation-title">McCabe-Thiele Method</h3>
               <p className="simulation-description">
                 Select components (e.g., methanol and water), specify operating conditions, and visualize distillation processes. The tool identifies the most volatile component and generates accurate equilibrium diagrams.
               </p>
             </div>
-          </a>
+          </Link>
+
+          {/* Kinetics Simulator Card */}
+          <Link href="/simulations/kinetics" className="simulation-card block">
+            <div className="simulation-image">
+              <Image
+                src="/images/simulations/kinetics_thumbnail.png" // Updated path
+                alt="Kinetics Simulator Thumbnail"
+                width={400} 
+                height={180} 
+                className="w-full h-full object-cover" 
+                unoptimized={true} 
+              />
+            </div>
+            <div className="simulation-content">
+              <h3 className="simulation-title">Kinetics Simulator</h3>
+              <p className="simulation-description">
+                Model elementary reaction steps, input initial concentrations and rate constants, and visualize concentration profiles over time using an adaptive ODE solver.
+              </p>
+            </div>
+          </Link>
           
-          <a href="/simulations/process-control" className="simulation-card">
-            <div className="simulation-image">Process Control</div>
+          {/* Process Control Card */}
+          <Link href="/simulations/process-control" className="simulation-card block">
+            <div className="simulation-image">
+               <Image
+                src="/images/simulations/process_control_thumbnail.png" // Placeholder path
+                alt="Process Control Thumbnail"
+                width={400} 
+                height={180} 
+                className="w-full h-full object-cover" 
+                unoptimized={true} 
+              />
+            </div>
             <div className="simulation-content">
               <h3 className="simulation-title">Process Control</h3>
               <p className="simulation-description">
-                Simulate process control systems with various inputs and disturbances. Understand system dynamics and control strategies in chemical processes.
+                Explore the dynamic response (step or ramp) of first and second-order systems by adjusting gain, time constant, and damping ratio.
               </p>
             </div>
-          </a>
+          </Link>
           
-          <a href="/simulations/pid-tuning" className="simulation-card">
-            <div className="simulation-image">PID Tuning</div>
+          {/* PID Tuning Card */}
+          <Link href="/simulations/pid-tuning" className="simulation-card block">
+            <div className="simulation-image">
+               <Image
+                src="/images/simulations/pid_thumbnail.png" // Placeholder path
+                alt="PID Tuning Thumbnail"
+                width={400} 
+                height={180} 
+                className="w-full h-full object-cover" 
+                unoptimized={true} 
+              />
+            </div>
             <div className="simulation-content">
               <h3 className="simulation-title">PID Tuning</h3>
               <p className="simulation-description">
-                Interactive PID controller tuning simulation. Adjust proportional, integral, and derivative parameters and observe system response in real-time.
+                Calculate PID controller parameters (Kc, τI, τD) using various tuning rules (IMC, AMIGO, ITAE) based on First-Order Plus Dead Time (FOPTD) model parameters.
               </p>
             </div>
-          </a>
+          </Link>
         </div>
       </div>
     </div>

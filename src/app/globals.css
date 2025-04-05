@@ -356,15 +356,26 @@ body {
   box-shadow: 0 10px 15px rgba(0, 0, 0, 0.2);
 }
 
+/* Ensure simulation image div has correct styling */
 .simulation-image {
   width: 100%;
-  height: 180px;
-  background-color: var(--accent-color);
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  height: 250px; /* Explicit height */
+  background-color: var(--medium-blue); /* Fallback color */
+  /* Remove flex properties if not needed for centering placeholder text */
+  /* display: flex; */
+  /* justify-content: center; */
+  /* align-items: center; */
   color: var(--text-color);
   font-style: italic;
+  position: relative; /* Keep relative if needed for other absolute elements */
+  overflow: hidden; /* Crucial to contain the image */
+}
+
+/* Ensure the image itself behaves correctly */
+.simulation-image img {
+  display: block; /* Prevent extra space below image */
+  width: 100%;
+  height: 100%;
 }
 
 .simulation-content {
@@ -860,7 +871,8 @@ button:hover, .btn:hover, a.btn:hover {
 .slider-group input[type="range"]#xd::-moz-range-thumb {
   background: orange;
 }
-slider-group input[type="range"]#xd::-webkit-slider-runnable-track {
+/* Add missing track styles for #xd */
+.slider-group input[type="range"]#xd::-webkit-slider-runnable-track {
   background: rgba(255, 165, 0, 0.3);
 }
 .slider-group input[type="range"]#xd::-moz-range-track {
@@ -888,7 +900,8 @@ slider-group input[type="range"]#xd::-webkit-slider-runnable-track {
 .slider-group input[type="range"]#xf::-moz-range-thumb {
   background: red;
 }
-slider-group input[type="range"]#xf::-webkit-slider-runnable-track {
+/* Add missing track styles for #xf */
+.slider-group input[type="range"]#xf::-webkit-slider-runnable-track {
   background: rgba(255, 0, 0, 0.3);
 }
 .slider-group input[type="range"]#xf::-moz-range-track {
