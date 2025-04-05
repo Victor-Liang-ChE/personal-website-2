@@ -13,7 +13,9 @@ const pageTitles: Record<string, string> = {
   '/simulations/mccabe-thiele': 'McCabe-Thiele Diagram',
   '/simulations/kinetics': 'Kinetics', // Add this line
   '/misc/drop-chance': 'Drop Chance Calculator',
-  '/misc/chemistry-tools': 'Chemistry Tools'
+  '/misc/chemistry-tools': 'Chemistry Tools',
+  '/simulations/pid-tuning': 'PID Tuning',
+  '/simulations/process-control': 'Process Control',
 };
 
 export default function Navbar({ 
